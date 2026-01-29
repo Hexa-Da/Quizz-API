@@ -1,6 +1,6 @@
 # Guide de démarrage – Quizz API
 
-Ce document explique comment faire fonctionner le projet **Quizz API** sur votre machine, de A à Z.
+Ce document explique comment faire fonctionner le projet **Quizz API** en local.
 
 ---
 
@@ -13,16 +13,20 @@ Avant de commencer, assurez-vous d’avoir :
 | **Node.js** | 18 ou plus récent | `node -v` |
 | **npm** | 9 ou plus récent | `npm -v` |
 | **MongoDB** | 6 ou 7 (local ou Atlas) | `mongod --version` ou compte [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) |
-| **Compte Google** | – | Pour créer les identifiants OAuth |
+| **Compte Google** | – | - |
 
 ---
 
 ## 1. MongoDB
 
-L’application utilise MongoDB pour stocker les utilisateurs (Google OAuth) et leurs meilleurs scores.
+L’application utilise MongoDB Atlas pour stocker les utilisateurs (Google OAuth) et leurs meilleurs scores.
 
-- **Option locale** : installez MongoDB et lancez le service. Par défaut, l’app se connecte à `mongodb://localhost:27017/quizz-api`.
-- **Option Atlas** : créez un cluster gratuit sur [MongoDB Atlas](https://www.mongodb.com/cloud/atlas), récupérez l’URI de connexion (ex. `mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/quizz-api?retryWrites=true&w=majority`) et mettez-la dans `server/.env` (voir ci‑dessous).
+**Pourquoi Atlas ?**  
+Atlas est gratuit, rapide à configurer, accessible partout et ne nécessite aucune installation locale.
+
+- Créez un cluster gratuit sur [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
+- Récupérez l’URI de connexion (ex. `mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/quizz-api?retryWrites=true&w=majority`).
+- Indiquez cette URI dans le fichier `server/.env` (voir section suivante).
 
 ---
 
@@ -120,29 +124,3 @@ npm run dev
 ```
 
 Le frontend est disponible sur `http://localhost:5173`. Ouvrez cette URL dans le navigateur.
-
----
-
-## 6. Vérifier que tout fonctionne
-
-- **Backend** : ouvrez `http://localhost:3000` → vous devez voir un JSON avec un message de bienvenue et le nombre de citations.
-- **Health check** : `http://localhost:3000/health` → renvoie `{"status":"ok","db":"connected"}` si la base est connectée.
-- **Frontend** : sur `http://localhost:5173`, cliquez sur « Se connecter avec Google » ; après connexion, les citations s’affichent et le meilleur score est sauvegardé.
-
----
-
-## 7. Build de production (optionnel)
-
-Pour tester un build proche de la production :
-
-```bash
-# Frontend : génère client/dist/
-cd client
-npm run build
-
-# Backend : même commande qu’en dev
-cd ../server
-npm start
-```
-
-Le frontend buildé peut être servi par n’importe quel serveur statique pointant vers `client/dist/` ; en production, le frontend est hébergé sur Netlify et le backend sur Render (voir [README.md](./README.md)).
