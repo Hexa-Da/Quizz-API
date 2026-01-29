@@ -2,21 +2,7 @@
 
 Jeu interactif où vous devez compléter des citations en choisissant le mot manquant parmi 4 options.
 
-## 🚀 Démarrage
-
-### Backend
-```bash
-cd server
-npm install
-npm start
-```
-
-### Frontend
-```bash
-cd client
-npm install
-npm run dev
-```
+**→ Guide complet pour faire tourner le projet : [DEMARRAGE.md](./DEMARRAGE.md)**
 
 ## 🏗️ Architecture
 
