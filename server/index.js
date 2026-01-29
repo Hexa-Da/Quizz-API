@@ -10,6 +10,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Indiquer que l’app est derrière un proxy (Render)
+app.set('trust proxy', 1);
+
 // Connexion à la base de données
 connectDB();
 
@@ -90,9 +93,23 @@ app.get('/auth/google',
 app.get('/auth/google/callback',
   passport.authenticate('google', { failureRedirect: `${FRONTEND_URL}/login` }),
   (req, res) => {
-    res.redirect(`${FRONTEND_URL}/`);
+    req.session.save((err) => {
+      if (err) return res.redirect(`${FRONTEND_URL}/?error=session`);
+      // Réponse 200 (pas 302) pour que le navigateur enregistre le cookie
+      res.set('Content-Type', 'text/html; charset=utf-8');
+      res.status(200).send(`
+        <!DOCTYPE html>
+        <html>
+          <head><meta charset="utf-8"></head>
+          <body>
+            <p>Connexion réussie, redirection...</p>
+            <script>window.location.href = ${JSON.stringify(FRONTEND_URL + '/')};</script>
+          </body>
+        </html>
+      `);
+    });
   }
-);
+);;
 
 app.get('/auth/logout', (req, res) => {
   req.logout((err) => {
