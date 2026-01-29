@@ -3,6 +3,7 @@ const cors = require('cors');
 const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const mongoose = require('mongoose');
 const connectDB = require('./config/database');
 const User = require('./models/User');
 const jwt = require('jsonwebtoken');
@@ -13,9 +14,6 @@ const PORT = process.env.PORT || 3000;
 
 // Indiquer que l’app est derrière un proxy (Render)
 app.set('trust proxy', 1);
-
-// Connexion à la base de données
-connectDB();
 
 // Middleware
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -141,18 +139,22 @@ app.get('/api/user', verifyToken, (req, res) => {
 app.post('/api/score', verifyToken, async (req, res) => {
   try {
     const { score } = req.body;
+    const num = Number(score);
+    if (typeof score === 'undefined' || Number.isNaN(num) || num < 0 || !Number.isInteger(num)) {
+      return res.status(400).json({ error: 'Score invalide (entier >= 0 attendu)' });
+    }
+
     const user = await User.findOne({ id: req.user.id });
-
     if (!user) {
-        return res.status(404).json({ error: 'Utilisateur non trouvé' });
+      return res.status(404).json({ error: 'Utilisateur non trouvé' });
     }
 
-    if (score > user.bestScore) {
-        user.bestScore = score;
-        await user.save();
+    if (num > user.bestScore) {
+      user.bestScore = num;
+      await user.save();
     }
-  
-  res.json({ bestScore: user.bestScore });
+
+    return res.json({ bestScore: user.bestScore });
   } catch (error) {
     console.error('Erreur lors de la mise à jour du score:', error.message);
     res.status(500).json({ error: 'Erreur lors de la mise à jour du score' });
@@ -348,6 +350,15 @@ app.get('/api/quote', (req, res) => {
     }
 });
 
+// Health check pour Render (DB + app)
+app.get('/health', (req, res) => {
+  const dbOk = mongoose.connection.readyState === 1;
+  res.status(dbOk ? 200 : 503).json({
+    status: dbOk ? 'ok' : 'degraded',
+    db: dbOk ? 'connected' : 'disconnected'
+  });
+});
+
 // Route de test pour vérifier que le serveur fonctionne
 app.get('/', (req, res) => {
     res.json({ 
@@ -360,7 +371,17 @@ app.get('/', (req, res) => {
 });
 
 
-// Démarrer le serveur
-app.listen(PORT, () => {
-    console.log(`🚀 Serveur démarré sur http://localhost:${PORT}\n`);
-});
+// Connexion DB puis démarrage du serveur
+async function start() {
+  try {
+    await connectDB();
+    app.listen(PORT, () => {
+      console.log(`🚀 Serveur démarré sur http://localhost:${PORT}\n`);
+    });
+  } catch (error) {
+    console.error('❌ Impossible de démarrer le serveur:', error.message);
+    process.exit(1);
+  }
+}
+
+start();

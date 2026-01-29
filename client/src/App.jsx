@@ -120,7 +120,7 @@ function App() {
         if (user && newScore > bestScore) {
           fetch(`${API_URL}/api/score`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders(),
             credentials: 'include',
             body: JSON.stringify({ score: newScore })
           })
