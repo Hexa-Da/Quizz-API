@@ -5,6 +5,7 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const connectDB = require('./config/database');
 const User = require('./models/User');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const app = express();
@@ -85,53 +86,59 @@ passport.deserializeUser(async (id, done) => {
       done(error, null);
     }
 });
+
+// Middleware pour vérifier le token JWT
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ error: 'Accès refusé' });
+
+  jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
+    if (err) return res.status(403).json({ error: 'Token invalide' });
+    try {
+      const user = await User.findOne({ id: decoded.id });
+      if (!user) return res.status(403).json({ error: 'Utilisateur introuvable' });
+      req.user = user;
+      next();
+    } catch (e) {
+      return res.status(500).json({ error: 'Erreur serveur' });
+    }
+  });
+};
+
 // Routes d'authentification
 app.get('/auth/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
 app.get('/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: `${FRONTEND_URL}/login` }),
+  passport.authenticate('google', { session: false, failureRedirect: `${FRONTEND_URL}/?error=login` }),
   (req, res) => {
-    req.session.save((err) => {
-      if (err) return res.redirect(`${FRONTEND_URL}/?error=session`);
-      // Réponse 200 (pas 302) pour que le navigateur enregistre le cookie
-      res.set('Content-Type', 'text/html; charset=utf-8');
-      res.status(200).send(`
-        <!DOCTYPE html>
-        <html>
-          <head><meta charset="utf-8"></head>
-          <body>
-            <p>Connexion réussie, redirection...</p>
-            <script>window.location.href = ${JSON.stringify(FRONTEND_URL + '/')};</script>
-          </body>
-        </html>
-      `);
-    });
+    const user = req.user;
+
+    const userPayload = {
+      id: user.id,
+      email: user.email
+    };
+
+    const token = jwt.sign(userPayload, process.env.JWT_SECRET, { expiresIn: '24h' });
+
+    res.redirect(`${FRONTEND_URL}/?token=${encodeURIComponent(token)}`);
   }
-);;
+);
 
 app.get('/auth/logout', (req, res) => {
-  req.logout((err) => {
-    if (err) return res.status(500).json({ error: 'Erreur de déconnexion' });
-    res.json({ message: 'Déconnexion réussie' });
-  });
+  res.json({ message: 'Déconnexion réussie' });
 });
 
 // Route pour obtenir l'utilisateur actuel
-app.get('/api/user', (req, res) => {
-  if (req.user) {
-    res.json(req.user);
-  } else {
-    res.status(401).json({ error: 'Non authentifié' });
-  }
+app.get('/api/user', verifyToken, (req, res) => {
+  res.json(req.user);
 });
 
 // Route pour mettre à jour le meilleur score
-app.post('/api/score', async (req, res) => {
-  if (!req.user) {
-    return res.status(401).json({ error: 'Non authentifié' });
-  }
+app.post('/api/score', verifyToken, async (req, res) => {
   try {
     const { score } = req.body;
     const user = await User.findOne({ id: req.user.id });

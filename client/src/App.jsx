@@ -3,6 +3,13 @@ import './App.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
+function authHeaders() {
+  const token = localStorage.getItem('authToken');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
 function App() {
   const [user, setUser] = useState(null)
   const [quoteData, setQuoteData] = useState(null)
@@ -18,10 +25,20 @@ function App() {
     return saved ? parseInt(saved, 10) : 0
   })
 
+  // Récupérer le token après redirect Google (ex: /?token=xxx)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      localStorage.setItem('authToken', token);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // Vérifier l'authentification au chargement
   useEffect(() => {
     fetch(`${API_URL}/api/user`, {
-      credentials: 'include'
+      headers: authHeaders()
     })
       .then(res => res.json())
       .then(data => {
@@ -42,9 +59,10 @@ function App() {
 
   function handleLogout() {
     fetch(`${API_URL}/auth/logout`, {
-      credentials: 'include'
+      headers: authHeaders()
     })
       .then(() => {
+        localStorage.removeItem('authToken')
         setUser(null)
         setBestScore(0)
         setCorrectAnswers(0)
