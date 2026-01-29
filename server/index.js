@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const axios = require('axios');
 
 const app = express();
 const PORT = 3000;
@@ -8,111 +9,106 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-// Liste de citations avec mot manquant et options
-const quotes = [
-  {
-    id: 1,
-    text: "La vie est un mystère qu'il faut vivre, et non un problème à résoudre.",
-    missingWord: "mystère",
-    options: ["mystère", "secret", "énigme", "puzzle"]
-  },
-  {
-    id: 2,
-    text: "Le succès, c'est tomber sept fois, se relever huit.",
-    missingWord: "huit",
-    options: ["huit", "neuf", "sept", "dix"]
-  },
-  {
-    id: 3,
-    text: "L'avenir appartient à ceux qui croient en la beauté de leurs rêves.",
-    missingWord: "rêves",
-    options: ["rêves", "espoirs", "projets", "idées"]
-  },
-  {
-    id: 4,
-    text: "La seule façon de faire du bon travail est d'aimer ce que vous faites.",
-    missingWord: "aimer",
-    options: ["aimer", "faire", "créer", "vivre"]
-  },
-  {
-    id: 5,
-    text: "L'éducation est l'arme la plus puissante qu'on puisse utiliser pour changer le monde.",
-    missingWord: "puissante",
-    options: ["puissante", "efficace", "importante", "nécessaire"]
-  },
-  {
-    id: 6,
-    text: "Le courage n'est pas l'absence de peur, mais la capacité de vaincre ce qui fait peur.",
-    missingWord: "courage",
-    options: ["courage", "force", "bravoure", "détermination"]
-  },
-  {
-    id: 7,
-    text: "La simplicité est la sophistication suprême.",
-    missingWord: "simplicité",
-    options: ["simplicité", "clarté", "élégance", "beauté"]
-  },
-  {
-    id: 8,
-    text: "L'imagination est plus importante que le savoir.",
-    missingWord: "imagination",
-    options: ["imagination", "créativité", "intuition", "inspiration"]
-  },
-  {
-    id: 9,
-    text: "Le meilleur moment pour planter un arbre était il y a 20 ans. Le deuxième meilleur moment est maintenant.",
-    missingWord: "maintenant",
-    options: ["maintenant", "aujourd'hui", "immédiatement", "désormais"]
-  },
-  {
-    id: 10,
-    text: "Ne vous inquiétez pas de l'échec, inquiétez-vous des chances que vous manquez si vous n'essayez même pas.",
-    missingWord: "échec",
-    options: ["échec", "erreur", "défaite", "perte"]
-  }
-];
+const EXTERNAL_API_URL = 'https://zenquotes.io/api/random';
+
 
 // Fonction pour mélanger un tableau
 function shuffleArray(array) {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
 }
 
-// Route pour obtenir une citation aléatoire avec mot manquant
-app.get('/api/quote', (req, res) => {
-  // Sélectionner une citation aléatoire
-  const randomIndex = Math.floor(Math.random() * quotes.length);
-  const selectedQuote = quotes[randomIndex];
-  
-  // Créer le texte avec placeholder
-  const textWithPlaceholder = selectedQuote.text.replace(
-    selectedQuote.missingWord,
-    '_____'
-  );
-  
-  // Mélanger les options
-  const shuffledOptions = shuffleArray(selectedQuote.options);
-  
-  // Retourner la citation avec placeholder et options mélangées
-  res.json({
-    id: selectedQuote.id,
-    text: textWithPlaceholder,
-    fullText: selectedQuote.text,
-    correctAnswer: selectedQuote.missingWord,
-    options: shuffledOptions
-  });
+// Fonction pour extraire un mot intéressant d'une phrase
+function extractWordFromQuote(text) {
+    // Nettoyer le texte (enlever la ponctuation)
+    const cleanText = text.replace(/[.,!?;:]/g, '');
+    // Séparer en mots
+    const words = cleanText.split(/\s+/).filter(word => word.length > 3);
+    
+    if (words.length === 0) return null;
+    
+    // Choisir un mot au milieu de la phrase (plus intéressant)
+    const middleIndex = Math.floor(words.length / 2);
+    return words[middleIndex].toLowerCase();
+}
+
+// Fonction pour générer des options de réponse
+function generateOptions(correctWord) {
+    // Options de base (vous pouvez les personnaliser)
+    const commonWords = [
+      'time', 'life', 'love', 'work', 'success', 'dream', 'hope', 'truth',
+      'courage', 'wisdom', 'beauty', 'freedom', 'peace', 'joy', 'faith',
+      'power', 'mind', 'heart', 'soul', 'spirit', 'light', 'dark', 'path',
+      'journey', 'destiny', 'fate', 'chance', 'luck', 'fortune', 'glory',
+      'danger', 'opportunity', 'strength', 'weakness', 'victory', 'defeat'
+    ];
+
+    // Filtrer pour éviter les doublons
+    const wrongOptions = commonWords
+    .filter(word => word !== correctWord && word.length > 3)
+    .slice(0, 3);
+
+    // Mélanger avec la bonne réponse
+    return shuffleArray([correctWord, ...wrongOptions]);
+}
+
+// Route pour obtenir une citation depuis l'API externe ZenQuotes
+app.get('/api/quote', async (req, res) => {
+    try {
+      // Étape 1 : Appeler l'API externe ZenQuotes
+      console.log('📡 Appel à l\'API externe ZenQuotes...');
+      const response = await axios.get(EXTERNAL_API_URL);
+      
+      // ZenQuotes retourne un tableau avec un objet
+      // Format: [{"q":"citation", "a":"auteur", "h":"html"}]
+      const quoteData = response.data[0];
+      
+      // Étape 2 : Extraire le texte de la citation (propriété 'q')
+      const quoteText = quoteData.q;
+      
+      // Étape 3 : Extraire un mot à compléter
+      const missingWord = extractWordFromQuote(quoteText);
+      
+      // Étape 4 : Créer le texte avec placeholder
+      const regex = new RegExp(`\\b${missingWord}\\b`, 'gi');
+      const textWithPlaceholder = quoteText.replace(regex, '_____');
+      
+      // Étape 5 : Générer les options de réponse
+      const options = generateOptions(missingWord);
+      
+      // Étape 6 : Retourner les données au format attendu par le frontend
+      res.json({
+        id: Date.now(), // ZenQuotes ne fournit pas d'ID
+        text: textWithPlaceholder,
+        fullText: quoteText,
+        author: quoteData.a || 'Auteur inconnu',
+        correctAnswer: missingWord,
+        options: options
+      });
+      
+      console.log('✅ Citation transformée et envoyée au frontend');
+      
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'appel à l\'API externe:', error.message);
+    }
 });
+
 
 // Route de test pour vérifier que le serveur fonctionne
 app.get('/', (req, res) => {
-  res.json({ message: 'API Quizz est en ligne !' });
+    res.json({ 
+      message: 'API Quizz est en ligne !',
+      externalApi: 'Utilise ZenQuotes API',
+      endpoint: '/api/quote',
+      apiUrl: EXTERNAL_API_URL
+    });
 });
 
 // Démarrer le serveur
 app.listen(PORT, () => {
-  console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
+    console.log(`🚀 Serveur démarré sur http://localhost:${PORT}\n`);
 });
