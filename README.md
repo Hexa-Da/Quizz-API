@@ -34,3 +34,5 @@ npm run dev
 ## 🔧 Technologies
 
 - React 19, Vite, Express.js
+- Passport.js avec Google OAuth 2.0
+- MongoDB avec Mongoose

@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
+// URL du backend API (configurable via .env)
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
 function App() {
   const [user, setUser] = useState(null)
   const [quoteData, setQuoteData] = useState(null)
@@ -18,7 +21,7 @@ function App() {
 
   // Vérifier l'authentification au chargement
   useEffect(() => {
-    fetch('http://localhost:3000/api/user', {
+    fetch(`${API_URL}/api/user`, {
       credentials: 'include'
     })
       .then(res => res.json())
@@ -35,11 +38,11 @@ function App() {
   }, [])
 
   function handleLogin() {
-    window.location.href = 'http://localhost:3000/auth/google'
+    window.location.href = `${API_URL}/auth/google`
   }
 
   function handleLogout() {
-    fetch('http://localhost:3000/auth/logout', {
+    fetch(`${API_URL}/auth/logout`, {
       credentials: 'include'
     })
       .then(() => {
@@ -55,7 +58,7 @@ function App() {
     setSelectedAnswer(null)
     setShowResult(false)
     
-    fetch('http://localhost:3000/api/quote')
+    fetch(`${API_URL}/api/quote`)
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -98,7 +101,7 @@ function App() {
         const newScore = prev + 1
         // Sauvegarder le score si l'utilisateur est connecté
         if (user && newScore > bestScore) {
-          fetch('http://localhost:3000/api/score', {
+          fetch(`${API_URL}/api/score`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -185,7 +188,7 @@ function App() {
             <span>🏆 Meilleur score: {bestScore}</span>
         </div>
       </div>
-      
+
       <div className="quote-box">
         <p className="quote-text">
           {quoteData.text}

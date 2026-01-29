@@ -3,14 +3,22 @@ const cors = require('cors');
 const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const connectDB = require('./config/database');
+const User = require('./models/User');
 require('dotenv').config();
 
 const app = express();
 const PORT = 3000;
 
+// Connexion à la base de données
+connectDB();
+
 // Middleware
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
+
 app.use(cors({
-    origin: 'http://localhost:5173', // URL de votre frontend
+    origin: FRONTEND_URL, // URL de votre frontend (configurable via .env)
     credentials: true
 }));
 app.use(express.json());
@@ -23,47 +31,61 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Stockage simple des utilisateurs (remplacez par une vraie DB)
-const users = new Map();
-
 // Configuration Passport Google OAuth
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "/auth/google/callback"
+    callbackURL: `${BACKEND_URL}/auth/google/callback`
   },
-  (accessToken, refreshToken, profile, done) => {
-    // Créer ou récupérer l'utilisateur
-    const user = {
-      id: profile.id,
-      email: profile.emails[0].value,
-      name: profile.displayName,
-      photo: profile.photos[0].value,
-      bestScore: users.get(profile.id)?.bestScore || 0
-    };
-    users.set(profile.id, user);
-    return done(null, user);
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+        let user = await User.findOne({ id: profile.id });
+
+        if (user) {
+            // Utilisateur existe déjà, mettre à jour les infos si nécessaire
+            user.email = profile.emails[0].value;
+            user.name = profile.displayName;
+            user.photo = profile.photos[0].value;
+            await user.save();
+        } else {
+            // Créer un nouvel utilisateur
+            user = await User.create({
+              id: profile.id,
+              email: profile.emails[0].value,
+              name: profile.displayName,
+              photo: profile.photos[0].value,
+              bestScore: 0
+            });
+        }
+
+        return done(null, user);
+    } catch (error) {
+      return done(error, null);
+    }
   }
 ));
 
 passport.serializeUser((user, done) => {
-  done(null, user.id);
+    done(null, user.id);
 });
 
-passport.deserializeUser((id, done) => {
-  const user = users.get(id);
-  done(null, user);
+passport.deserializeUser(async (id, done) => {
+    try {
+      const user = await User.findOne({ id: id });
+      done(null, user);
+    } catch (error) {
+      done(error, null);
+    }
 });
-
 // Routes d'authentification
 app.get('/auth/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
 app.get('/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: 'http://localhost:5173/login' }),
+  passport.authenticate('google', { failureRedirect: `${FRONTEND_URL}/login` }),
   (req, res) => {
-    res.redirect('http://localhost:5173/');
+    res.redirect(`${FRONTEND_URL}/`);
   }
 );
 
@@ -84,19 +106,28 @@ app.get('/api/user', (req, res) => {
 });
 
 // Route pour mettre à jour le meilleur score
-app.post('/api/score', (req, res) => {
+app.post('/api/score', async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Non authentifié' });
   }
-  
-  const { score } = req.body;
-  const user = users.get(req.user.id);
-  if (score > user.bestScore) {
-    user.bestScore = score;
-    users.set(req.user.id, user);
-  }
+  try {
+    const { score } = req.body;
+    const user = await User.findOne({ id: req.user.id });
+
+    if (!user) {
+        return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    if (score > user.bestScore) {
+        user.bestScore = score;
+        await user.save();
+    }
   
   res.json({ bestScore: user.bestScore });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du score:', error.message);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du score' });
+  }
 });
 
 // Citations drôles (source: citations.ouest-france.fr)
