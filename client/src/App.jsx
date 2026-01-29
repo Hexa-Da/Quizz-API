@@ -83,6 +83,11 @@ function App() {
             )}
           </div>
         )}
+        {quoteData.author && (
+          <div className="author-text">
+            <p>{quoteData.author}</p>
+          </div>
+        )}
       </div>
       
       <div className="buttons-container">

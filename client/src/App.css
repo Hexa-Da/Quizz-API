@@ -53,6 +53,13 @@
   color: white;
 }
 
+.author-text {
+  font-size: 1rem;
+  font-style: italic;
+  color: grey;
+  margin: 0;
+}
+
 .buttons-container {
   display: flex;
   gap: 1.5rem;

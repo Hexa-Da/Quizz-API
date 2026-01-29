@@ -1,12 +1,37 @@
-# React + Vite
+# Quizz API - Jeu de Complétion de Citations
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Jeu interactif où vous devez compléter des citations en choisissant le mot manquant parmi 4 options.
 
-Currently, two official plugins are available:
+## 🚀 Démarrage
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Backend
+```bash
+cd server
+npm install
+npm start
+```
 
-## Expanding the ESLint configuration
+### Frontend
+```bash
+cd client
+npm install
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🏗️ Architecture
+
+- **Frontend** : React + Vite
+- **Backend** : Express.js (proxy vers ZenQuotes API)
+- **API Externe** : ZenQuotes (`https://zenquotes.io/api/random`)
+
+## 📝 Fonctionnement
+
+1. Le backend récupère une citation depuis ZenQuotes API
+2. Un mot est extrait automatiquement de la citation
+3. Le frontend affiche la citation avec `_____` à la place du mot manquant
+4. L'utilisateur choisit parmi 4 options
+5. Le résultat et l'auteur sont affichés
+
+## 🔧 Technologies
+
+- React 19, Vite, Express.js, Axios
