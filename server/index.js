@@ -6,6 +6,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const mongoose = require('mongoose');
 const connectDB = require('./config/database');
 const User = require('./models/User');
+const Quote = require('./models/Quote');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
