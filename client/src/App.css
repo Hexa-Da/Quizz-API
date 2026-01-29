@@ -7,12 +7,12 @@
 
 .app {
   width: 100%;
-  min-height: 80vh;
-  gap: 3rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  min-height: 80vh;
+  gap: 3rem;
 }
 
 .quote-box {
@@ -25,8 +25,10 @@
   box-shadow: 0 4px 6px black, 0 0 20px blue;
   min-height: 150px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 1.5rem;
 }
 
 .quote-text {
@@ -37,6 +39,27 @@
   font-style: italic;
 }
 
+/* Messages de résultat */
+.result-message {
+  padding: 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.result-message.correct {
+  background-color: green;
+  color: green;
+  border: 2px solid green;
+}
+
+.result-message.incorrect {
+  background-color: red;
+  color: red;
+  border: 2px solid red;
+}
+
+/* Container des boutons */
 .buttons-container {
   display: flex;
   gap: 1.5rem;
@@ -44,29 +67,59 @@
   justify-content: center;
 }
 
-.success-button {
+.quote-button {
   border-radius: 8px;
-  border: 2px solid green;
+  border: 2px solid blue;
   padding: 1rem 2.5rem;
   font-size: 1.1rem;
   font-weight: 600;
-  background-color: green;
+  font-family: inherit;
+  background-color: blue;
   color: white;
   min-width: 200px;
 }
 
-.error-button {
-  border-radius: 8px;
-  border: 2px solid red;
-  padding: 1rem 2.5rem;
-  font-size: 1.1rem;
-  font-weight: 600;
-  background-color: red;
+.quote-button:hover {
+  border-color: white;
+  transform: scale(1.05);
+}
+
+.quote-button.correct-answer {
+  background-color: #22c55e;
+  border-color: #22c55e;
   color: white;
 }
 
-.error-button:hover,
-.success-button:hover {
-  transform: scale(1.05);
-  border-color: white;
+.quote-button.wrong-answer {
+  background-color: #ef4444;
+  border-color: #ef4444;
+  color: white;
 }
+
+.next-button {
+  border-radius: 8px;
+  border: 2px solid blue;
+  padding: 1rem 2.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  background-color: blue;
+  color: white;
+  margin-top: 1rem;
+}
+
+.next-button:hover {
+  border-color: white;
+  transform: scale(1.05);
+}
+
+.loading,
+.error {
+  font-size: 1.5rem;
+  color: white;
+  padding: 2rem;
+}
+
+.error {
+  color: red;
+}
+
