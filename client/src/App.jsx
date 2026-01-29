@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
 function App() {
@@ -6,6 +6,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedAnswer, setSelectedAnswer] = useState(null)
   const [showResult, setShowResult] = useState(false)
+  const hasFetchedRef = useRef(false)
 
   function fetchQuote() {
     setIsLoading(true)
@@ -36,7 +37,11 @@ function App() {
   }
 
   useEffect(() => {
-    fetchQuote()
+    // Éviter les appels multiples causés par StrictMode
+    if (!hasFetchedRef.current) {
+      hasFetchedRef.current = true
+      fetchQuote()
+    }
   }, [])
 
   function handleChoice(choice) {

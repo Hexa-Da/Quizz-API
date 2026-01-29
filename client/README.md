@@ -21,17 +21,16 @@ npm run dev
 ## 🏗️ Architecture
 
 - **Frontend** : React + Vite
-- **Backend** : Express.js (proxy vers ZenQuotes API)
-- **API Externe** : ZenQuotes (`https://zenquotes.io/api/random`)
+- **Backend** : Express.js (API interne)
+- **Source** : Citations drôles d'Ouest-France
 
 ## 📝 Fonctionnement
 
-1. Le backend récupère une citation depuis ZenQuotes API
-2. Un mot est extrait automatiquement de la citation
-3. Le frontend affiche la citation avec `_____` à la place du mot manquant
-4. L'utilisateur choisit parmi 4 options
-5. Le résultat et l'auteur sont affichés
+1. Le backend sélectionne une citation aléatoire parmi les citations drôles stockées
+2. La citation est affichée avec `_____` à la place du mot manquant
+3. L'utilisateur choisit parmi 4 options
+4. Le résultat et l'auteur sont affichés après la réponse
 
 ## 🔧 Technologies
 
-- React 19, Vite, Express.js, Axios
+- React 19, Vite, Express.js
