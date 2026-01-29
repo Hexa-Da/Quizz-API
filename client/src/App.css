@@ -15,6 +15,18 @@
   gap: 3rem;
 }
 
+.score-container {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.score-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .quote-box {
   background-color: black;
   border-radius: 12px;

@@ -7,6 +7,13 @@ function App() {
   const [selectedAnswer, setSelectedAnswer] = useState(null)
   const [showResult, setShowResult] = useState(false)
   const hasFetchedRef = useRef(false)
+  const [correctAnswers, setCorrectAnswers] = useState(0)
+  const [wrongAnswers, setWrongAnswers] = useState(0)
+  const [bestScore, setBestScore] = useState(() => {
+    // Charger le meilleur score depuis localStorage au démarrage
+    const saved = localStorage.getItem('bestScore')
+    return saved ? parseInt(saved, 10) : 0
+  })
 
   function fetchQuote() {
     setIsLoading(true)
@@ -49,11 +56,31 @@ function App() {
     
     setSelectedAnswer(choice)
     setShowResult(true)
+  
+    // Mettre à jour le score
+    if (choice === quoteData.correctAnswer) {
+      setCorrectAnswers(prev => prev + 1)
+    } else {
+      setWrongAnswers(prev => prev + 1)
+    }
+  }
+
+  function accuracyPercentage() {
+    const totalAnswers = correctAnswers + wrongAnswers;
+    const successRate = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
+    return successRate;
   }
 
   function handleNextQuote() {
     fetchQuote()
   }
+
+  useEffect(() => {
+    if (correctAnswers > bestScore) {
+      setBestScore(correctAnswers)
+      localStorage.setItem('bestScore', correctAnswers.toString())
+    }
+  }, [correctAnswers, bestScore])
 
   if (isLoading) {
     return (
@@ -75,6 +102,16 @@ function App() {
 
   return (
     <div className="app">
+      <div className="score-container">
+        <div className="score-item">
+            <span>✅ Correctes: {correctAnswers}</span>
+            <span>❌ Incorrectes: {wrongAnswers}</span>
+        </div>
+        <div className="score-item">
+            <span>📊 Taux de réussite: {accuracyPercentage()}%</span>
+            <span>🏆 Meilleur score: {bestScore}</span>
+        </div>
+      </div>
       <div className="quote-box">
         <p className="quote-text">
           {quoteData.text}
