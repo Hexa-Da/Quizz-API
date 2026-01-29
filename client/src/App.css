@@ -7,4 +7,66 @@
 
 .app {
   width: 100%;
+  min-height: 80vh;
+  gap: 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.quote-box {
+  background-color: black;
+  border: 2px solid blue;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 4px 6px black, 0 0 20px blue;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quote-text {
+  font-size: 1.5rem;
+  line-height: 1.6;
+  color: white;
+  margin: 0;
+  font-style: italic;
+}
+
+.buttons-container {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.success-button {
+  border-radius: 8px;
+  border: 2px solid green;
+  padding: 1rem 2.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  background-color: green;
+  color: white;
+  min-width: 200px;
+}
+
+.error-button {
+  border-radius: 8px;
+  border: 2px solid red;
+  padding: 1rem 2.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  background-color: red;
+  color: white;
+}
+
+.error-button:hover,
+.success-button:hover {
+  transform: scale(1.05);
+  border-color: white;
 }
