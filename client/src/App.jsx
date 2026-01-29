@@ -20,7 +20,6 @@ function App() {
         return response.json()
       })
       .then(data => {
-        console.log('Données reçues:', data)
         if (data && data.options && Array.isArray(data.options)) {
           setQuoteData(data)
         } else {

@@ -17,12 +17,10 @@
 
 .quote-box {
   background-color: black;
-  border: 2px solid blue;
   border-radius: 12px;
   padding: 2rem;
   max-width: 600px;
   width: 100%;
-  box-shadow: 0 4px 6px black, 0 0 20px blue;
   min-height: 150px;
   display: flex;
   flex-direction: column;
@@ -36,10 +34,8 @@
   line-height: 1.6;
   color: white;
   margin: 0;
-  font-style: italic;
 }
 
-/* Messages de résultat */
 .result-message {
   padding: 1rem;
   border-radius: 8px;
@@ -49,17 +45,14 @@
 
 .result-message.correct {
   background-color: green;
-  color: green;
-  border: 2px solid green;
+  color: white;
 }
 
 .result-message.incorrect {
   background-color: red;
-  color: red;
-  border: 2px solid red;
+  color: white;
 }
 
-/* Container des boutons */
 .buttons-container {
   display: flex;
   gap: 1.5rem;
@@ -69,14 +62,12 @@
 
 .quote-button {
   border-radius: 8px;
-  border: 2px solid blue;
-  padding: 1rem 2.5rem;
-  font-size: 1.1rem;
+  padding: 1rem;
+  font-size: 1rem;
   font-weight: 600;
-  font-family: inherit;
-  background-color: blue;
+  background-color: grey;
   color: white;
-  min-width: 200px;
+  min-width: 120px;
 }
 
 .quote-button:hover {
@@ -85,21 +76,18 @@
 }
 
 .quote-button.correct-answer {
-  background-color: #22c55e;
-  border-color: #22c55e;
+  background-color: green;
   color: white;
 }
 
 .quote-button.wrong-answer {
-  background-color: #ef4444;
-  border-color: #ef4444;
+  background-color: red;
   color: white;
 }
 
 .next-button {
   border-radius: 8px;
-  border: 2px solid blue;
-  padding: 1rem 2.5rem;
+  padding: 1rem;
   font-size: 1.1rem;
   font-weight: 600;
   background-color: blue;
