@@ -3,7 +3,6 @@ const cors = require('cors');
 const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
@@ -289,80 +288,6 @@ app.get('/api/quote', (req, res) => {
     }
 });
 
-// Cache pour les images de célébrités
-const celebrityImageCache = new Map();
-const CACHE_TTL = 60 * 60; // 1h en secondes
-
-function getFromCache(key) {
-  const entry = celebrityImageCache.get(key);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) {
-    celebrityImageCache.delete(key);
-    return null;
-  }
-  return entry.data;
-}
-
-function setCache(key, data, ttlSeconds = CACHE_TTL) {
-  celebrityImageCache.set(key, { data, expiresAt: Date.now() + ttlSeconds * 1000 });
-}
-
-// Route pour obtenir l'image d'une célébrité depuis Wikipedia
-app.get('/api/celebrity-image', async (req, res) => {
-  const name = (req.query.name || '').trim();
-  if (!name) {
-    return res.status(400).json({ error: 'Paramètre "name" requis' });
-  }
-
-  const cacheKey = `celebrity:${name.toLowerCase()}`;
-  const cached = getFromCache(cacheKey);
-  if (cached) {
-    console.log(`📸 Image de ${name} récupérée du cache`);
-    return res.json(cached);
-  }
-
-  try {
-    const wikiUrl = 'https://en.wikipedia.org/w/api.php';
-    const params = {
-      action: 'query',
-      titles: name,
-      prop: 'pageimages',
-      format: 'json',
-      pithumbsize: 500,
-      redirects: 1
-    };
-
-    const { data } = await axios.get(wikiUrl, { 
-      params,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
-    });
-    const pages = data.query && data.query.pages;
-    
-    if (!pages) {
-      return res.status(404).json({ error: 'Célébrité non trouvée' });
-    }
-
-    const page = Object.values(pages)[0];
-    if (page && page.thumbnail && page.thumbnail.source) {
-      const result = { 
-        image: page.thumbnail.source, 
-        title: page.title,
-        source: 'Wikipedia'
-      };
-      setCache(cacheKey, result);
-      console.log(`✅ Image de ${page.title} récupérée depuis Wikipedia`);
-      return res.json(result);
-    } else {
-      return res.status(404).json({ error: 'Aucune image trouvée pour cette célébrité' });
-    }
-  } catch (err) {
-    console.error('❌ Erreur lors de la récupération de l\'image:', err.message);
-    return res.status(500).json({ error: 'Erreur serveur lors de la récupération de l\'image' });
-  }
-});
-
 // Route de test pour vérifier que le serveur fonctionne
 app.get('/', (req, res) => {
     res.json({ 
@@ -370,7 +295,7 @@ app.get('/', (req, res) => {
         source: 'Citations drôles - Ouest-France',
         totalQuotes: funnyQuotes.length,
         authors: [...new Set(funnyQuotes.map(q => q.author))],
-        endpoints: ['/api/quote', '/api/celebrity-image?name=NomCelebrite']
+        endpoint: '/api/quote'
     });
 });
 
