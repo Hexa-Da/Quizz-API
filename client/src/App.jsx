@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
-// URL du backend API (configurable via .env)
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 function App() {
