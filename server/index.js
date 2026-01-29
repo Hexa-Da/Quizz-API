@@ -371,17 +371,12 @@ app.get('/', (req, res) => {
 });
 
 
-// Connexion DB puis démarrage du serveur
-async function start() {
-  try {
-    await connectDB();
-    app.listen(PORT, () => {
-      console.log(`🚀 Serveur démarré sur http://localhost:${PORT}\n`);
-    });
-  } catch (error) {
-    console.error('❌ Impossible de démarrer le serveur:', error.message);
+// Démarrer le serveur tout de suite (évite le timeout du health check Render),
+// puis connecter la DB en arrière-plan. /health renverra 503 jusqu'à connexion DB.
+app.listen(PORT, () => {
+  console.log(`🚀 Serveur démarré sur le port ${PORT}`);
+  connectDB().catch((err) => {
+    console.error('❌ Connexion MongoDB échouée:', err.message);
     process.exit(1);
-  }
-}
-
-start();
+  });
+});
