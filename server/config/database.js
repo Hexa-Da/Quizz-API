@@ -3,10 +3,7 @@ require('dotenv').config();
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/quizz-api', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/quizz-api');
     console.log('✅ MongoDB connecté avec succès');
   } catch (error) {
     console.error('❌ Erreur de connexion MongoDB:', error.message);
