@@ -1,12 +1,103 @@
 const express = require('express');
 const cors = require('cors');
+const session = require('express-session');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+require('dotenv').config();
 
 const app = express();
 const PORT = 3000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:5173', // URL de votre frontend
+    credentials: true
+}));
 app.use(express.json());
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 } // 24h
+}));
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Stockage simple des utilisateurs (remplacez par une vraie DB)
+const users = new Map();
+
+// Configuration Passport Google OAuth
+passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: "/auth/google/callback"
+  },
+  (accessToken, refreshToken, profile, done) => {
+    // Créer ou récupérer l'utilisateur
+    const user = {
+      id: profile.id,
+      email: profile.emails[0].value,
+      name: profile.displayName,
+      photo: profile.photos[0].value,
+      bestScore: users.get(profile.id)?.bestScore || 0
+    };
+    users.set(profile.id, user);
+    return done(null, user);
+  }
+));
+
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser((id, done) => {
+  const user = users.get(id);
+  done(null, user);
+});
+
+// Routes d'authentification
+app.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/auth/google/callback',
+  passport.authenticate('google', { failureRedirect: 'http://localhost:5173/login' }),
+  (req, res) => {
+    res.redirect('http://localhost:5173/');
+  }
+);
+
+app.get('/auth/logout', (req, res) => {
+  req.logout((err) => {
+    if (err) return res.status(500).json({ error: 'Erreur de déconnexion' });
+    res.json({ message: 'Déconnexion réussie' });
+  });
+});
+
+// Route pour obtenir l'utilisateur actuel
+app.get('/api/user', (req, res) => {
+  if (req.user) {
+    res.json(req.user);
+  } else {
+    res.status(401).json({ error: 'Non authentifié' });
+  }
+});
+
+// Route pour mettre à jour le meilleur score
+app.post('/api/score', (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Non authentifié' });
+  }
+  
+  const { score } = req.body;
+  const user = users.get(req.user.id);
+  if (score > user.bestScore) {
+    user.bestScore = score;
+    users.set(req.user.id, user);
+  }
+  
+  res.json({ bestScore: user.bestScore });
+});
 
 // Citations drôles (source: citations.ouest-france.fr)
 const funnyQuotes = [

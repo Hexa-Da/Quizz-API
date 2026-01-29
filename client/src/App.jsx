@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
 function App() {
+  const [user, setUser] = useState(null)
   const [quoteData, setQuoteData] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedAnswer, setSelectedAnswer] = useState(null)
@@ -14,6 +15,40 @@ function App() {
     const saved = localStorage.getItem('bestScore')
     return saved ? parseInt(saved, 10) : 0
   })
+
+  // Vérifier l'authentification au chargement
+  useEffect(() => {
+    fetch('http://localhost:3000/api/user', {
+      credentials: 'include'
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.id) {
+          setUser(data)
+          setBestScore(data.bestScore || 0)
+        }
+        setIsLoading(false)
+      })
+      .catch(() => {
+        setIsLoading(false)
+      })
+  }, [])
+
+  function handleLogin() {
+    window.location.href = 'http://localhost:3000/auth/google'
+  }
+
+  function handleLogout() {
+    fetch('http://localhost:3000/auth/logout', {
+      credentials: 'include'
+    })
+      .then(() => {
+        setUser(null)
+        setBestScore(0)
+        setCorrectAnswers(0)
+        setWrongAnswers(0)
+      })
+  }
 
   function fetchQuote() {
     setIsLoading(true)
@@ -59,7 +94,21 @@ function App() {
   
     // Mettre à jour le score
     if (choice === quoteData.correctAnswer) {
-      setCorrectAnswers(prev => prev + 1)
+      setCorrectAnswers(prev => {
+        const newScore = prev + 1
+        // Sauvegarder le score si l'utilisateur est connecté
+        if (user && newScore > bestScore) {
+          fetch('http://localhost:3000/api/score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ score: newScore })
+          })
+            .then(res => res.json())
+            .then(data => setBestScore(data.bestScore))
+        }
+        return newScore
+      })
     } else {
       setWrongAnswers(prev => prev + 1)
     }
@@ -90,6 +139,20 @@ function App() {
     )
   }
 
+  if (!user) {
+    return (
+      <div className="app">
+        <div className="login-container">
+          <h1>Quizz API</h1>
+          <p>Connectez-vous pour sauvegarder vos scores</p>
+          <button onClick={handleLogin} className="login-button">
+            Se connecter avec Google
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (!quoteData || !quoteData.options) {
     return (
       <div className="app">
@@ -102,6 +165,16 @@ function App() {
 
   return (
     <div className="app">
+      <div className="user-header">
+        <div className="user-info">
+          <img src={user.photo} alt={user.name} className="user-avatar" />
+          <span>{user.name}</span>
+        </div>
+        <button onClick={handleLogout} className="logout-button">
+          Déconnexion
+        </button>
+      </div>
+
       <div className="score-container">
         <div className="score-item">
             <span>✅ Correctes: {correctAnswers}</span>
@@ -112,6 +185,7 @@ function App() {
             <span>🏆 Meilleur score: {bestScore}</span>
         </div>
       </div>
+      
       <div className="quote-box">
         <p className="quote-text">
           {quoteData.text}
