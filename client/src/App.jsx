@@ -17,6 +17,8 @@ function App() {
   const [selectedAnswer, setSelectedAnswer] = useState(null)
   const [showResult, setShowResult] = useState(false)
   const hasFetchedRef = useRef(false)
+  const [celebrityImage, setCelebrityImage] = useState(null)
+  const [imageLoading, setImageLoading] = useState(false)
   const [correctAnswers, setCorrectAnswers] = useState(0)
   const [wrongAnswers, setWrongAnswers] = useState(0)
   const [bestScore, setBestScore] = useState(() => {
@@ -105,6 +107,29 @@ function App() {
       fetchQuote()
     }
   }, [])
+
+
+  // Récupérer l'image de la célébrité quand la citation change
+  useEffect(() => {
+    if (quoteData && quoteData.author) {
+      setImageLoading(true)
+      setCelebrityImage(null)
+      
+      fetch(`http://localhost:3000/api/celebrity-image?name=${encodeURIComponent(quoteData.author)}`)
+        .then(res => {
+          if (!res.ok) throw new Error('Image not found')
+          return res.json()
+        })
+        .then(data => {
+          setCelebrityImage(data.image)
+          setImageLoading(false)
+        })
+        .catch(error => {
+          console.warn(`Pas d'image trouvée pour ${quoteData.author}:`, error)
+          setImageLoading(false)
+        })
+    }
+  }, [quoteData])
 
   function handleChoice(choice) {
     if (showResult) return // Empêcher de cliquer plusieurs fois
@@ -220,8 +245,15 @@ function App() {
           </div>
         )}
         {quoteData.author && (
-          <div className="author-text">
-            <p>{quoteData.author}</p>
+
+            <div className="author-section">
+              {imageLoading && <div className="image-loading">Chargement de l'image...</div>}
+              {celebrityImage && (
+                <img src={celebrityImage} alt={quoteData.author} className="celebrity-image" />
+              )}
+            <div className="author-text">
+              <p>{quoteData.author}</p>
+            </div>
           </div>
         )}
       </div>

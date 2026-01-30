@@ -108,6 +108,30 @@ logout-button:hover {
   margin: 0;
 }
 
+.author-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.celebrity-image {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid white;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.2);
+}
+
+.image-loading {
+  font-size: 0.9rem;
+  color: grey;
+  font-style: italic;
+}
+
+
 .buttons-container {
   display: flex;
   gap: 1.5rem;
