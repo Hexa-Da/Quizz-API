@@ -115,7 +115,7 @@ function App() {
       setImageLoading(true)
       setCelebrityImage(null)
       
-      fetch(`http://localhost:3000/api/celebrity-image?name=${encodeURIComponent(quoteData.author)}`)
+      fetch(`${API_URL}/api/celebrity-image?name=${encodeURIComponent(quoteData.author)}`)
         .then(res => {
           if (!res.ok) throw new Error('Image not found')
           return res.json()
