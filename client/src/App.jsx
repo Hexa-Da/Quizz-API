@@ -1,6 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
+function authHeaders() {
+  const token = localStorage.getItem('authToken');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
 function App() {
   const [user, setUser] = useState(null)
   const [quoteData, setQuoteData] = useState(null)
@@ -18,10 +27,20 @@ function App() {
     return saved ? parseInt(saved, 10) : 0
   })
 
+  // Récupérer le token après redirect Google (ex: /?token=xxx)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      localStorage.setItem('authToken', token);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // Vérifier l'authentification au chargement
   useEffect(() => {
-    fetch('http://localhost:3000/api/user', {
-      credentials: 'include'
+    fetch(`${API_URL}/api/user`, {
+      headers: authHeaders()
     })
       .then(res => res.json())
       .then(data => {
@@ -37,14 +56,15 @@ function App() {
   }, [])
 
   function handleLogin() {
-    window.location.href = 'http://localhost:3000/auth/google'
+    window.location.href = `${API_URL}/auth/google`
   }
 
   function handleLogout() {
-    fetch('http://localhost:3000/auth/logout', {
-      credentials: 'include'
+    fetch(`${API_URL}/auth/logout`, {
+      headers: authHeaders()
     })
       .then(() => {
+        localStorage.removeItem('authToken')
         setUser(null)
         setBestScore(0)
         setCorrectAnswers(0)
@@ -57,7 +77,7 @@ function App() {
     setSelectedAnswer(null)
     setShowResult(false)
     
-    fetch('http://localhost:3000/api/quote')
+    fetch(`${API_URL}/api/quote`)
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -123,9 +143,9 @@ function App() {
         const newScore = prev + 1
         // Sauvegarder le score si l'utilisateur est connecté
         if (user && newScore > bestScore) {
-          fetch('http://localhost:3000/api/score', {
+          fetch(`${API_URL}/api/score`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders(),
             credentials: 'include',
             body: JSON.stringify({ score: newScore })
           })
@@ -210,7 +230,7 @@ function App() {
             <span>🏆 Meilleur score: {bestScore}</span>
         </div>
       </div>
-      
+
       <div className="quote-box">
         <p className="quote-text">
           {quoteData.text}
