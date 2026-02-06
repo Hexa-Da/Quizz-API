@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const mongoose = require('mongoose');
@@ -22,23 +21,11 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 
 app.use(cors({
-    origin: FRONTEND_URL, // URL de votre frontend (configurable via .env)
+    origin: FRONTEND_URL,
     credentials: true
 }));
 app.use(express.json());
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000,
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
-  }
-}));
 app.use(passport.initialize());
-app.use(passport.session());
 
 // Configuration Passport Google OAuth
 passport.use(new GoogleStrategy({
@@ -74,19 +61,6 @@ passport.use(new GoogleStrategy({
   }
 ));
 
-passport.serializeUser((user, done) => {
-    done(null, user.id);
-});
-
-passport.deserializeUser(async (id, done) => {
-    try {
-      const user = await User.findOne({ id: id });
-      done(null, user);
-    } catch (error) {
-      done(error, null);
-    }
-});
-
 // Middleware pour vérifier le token JWT
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -97,7 +71,7 @@ const verifyToken = (req, res, next) => {
   jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
     if (err) return res.status(403).json({ error: 'Token invalide' });
     try {
-      const user = await User.findOne({ id: decoded.id });
+      const user = await User.findOne({ id: String(decoded.id) });
       if (!user) return res.status(403).json({ error: 'Utilisateur introuvable' });
       req.user = user;
       next();
