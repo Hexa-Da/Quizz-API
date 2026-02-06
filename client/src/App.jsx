@@ -252,30 +252,32 @@ function App() {
         {isQuoteLoading ? (
           <div className="loading">Chargement de la citation...</div>
         ) : (
-          <p className="quote-text">
-            {quoteData.text}
-          </p>
-        )}
-        {showResult && (
-          <div className={`result-message ${isCorrect ? 'correct' : 'incorrect'}`}>
-            {isCorrect ? (
-              <span>✅ Correct ! La réponse était : "{quoteData.correctAnswer}"</span>
-            ) : (
-              <span>❌ Incorrect. La bonne réponse était : "{quoteData.correctAnswer}"</span>
+          <>
+            <p className="quote-text">
+              {quoteData.text}
+            </p>
+          
+            {showResult && (
+              <div className={`result-message ${isCorrect ? 'correct' : 'incorrect'}`}>
+                {isCorrect ? (
+                  <span>✅ Correct ! La réponse était : "{quoteData.correctAnswer}"</span>
+                ) : (
+                  <span>❌ Incorrect. La bonne réponse était : "{quoteData.correctAnswer}"</span>
+                )}
+              </div>
             )}
-          </div>
-        )}
-        {quoteData.author && (
-
-            <div className="author-section">
-              {imageLoading && <div className="image-loading">Chargement de l'image...</div>}
-              {celebrityImage && (
-                <img src={celebrityImage} alt={quoteData.author} className="celebrity-image" />
-              )}
-            <div className="author-text">
-              <p>{quoteData.author}</p>
-            </div>
-          </div>
+            {quoteData.author && (
+                <div className="author-section">
+                  {imageLoading && <div className="image-loading">Chargement de l'image...</div>}
+                  {celebrityImage && (
+                    <img src={celebrityImage} alt={quoteData.author} className="celebrity-image" />
+                  )}
+                <div className="author-text">
+                  <p>{quoteData.author}</p>
+                </div>
+              </div>
+            )} 
+          </>
         )}
       </div>
       
