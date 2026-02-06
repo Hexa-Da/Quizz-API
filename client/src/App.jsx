@@ -21,6 +21,7 @@ function App() {
   const [imageLoading, setImageLoading] = useState(false)
   const [correctAnswers, setCorrectAnswers] = useState(0)
   const [wrongAnswers, setWrongAnswers] = useState(0)
+  const [isQuoteLoading, setIsQuoteLoading] = useState(false);
   const [bestScore, setBestScore] = useState(() => {
     // Charger le meilleur score depuis localStorage au démarrage
     const saved = localStorage.getItem('bestScore')
@@ -90,7 +91,7 @@ function App() {
   }
 
   function fetchQuote() {
-    setIsLoading(true)
+    setIsQuoteLoading(true)
     setSelectedAnswer(null)
     setShowResult(false)
     
@@ -108,7 +109,7 @@ function App() {
           console.error('Format de données invalide:', data)
           setQuoteData(null)
         }
-        setIsLoading(false)
+        setIsQuoteLoading(false)
       })
       .catch(error => {
         console.error('Erreur lors du fetch:', error)
@@ -119,16 +120,16 @@ function App() {
 
   useEffect(() => {
     // Éviter les appels multiples causés par StrictMode
-    if (!hasFetchedRef.current) {
+    if (!hasFetchedRef.current && user) {
       hasFetchedRef.current = true
       fetchQuote()
     }
-  }, [])
+  }, [user])
 
 
   // Récupérer l'image de la célébrité quand la citation change
   useEffect(() => {
-    if (quoteData && quoteData.author) {
+    if (quoteData && quoteData.author && user) {
       setImageLoading(true)
       setCelebrityImage(null)
       
@@ -146,7 +147,7 @@ function App() {
           setImageLoading(false)
         })
     }
-  }, [quoteData])
+  }, [quoteData, user])
 
   function handleChoice(choice) {
     if (showResult) return // Empêcher de cliquer plusieurs fois
@@ -248,9 +249,13 @@ function App() {
       </div>
 
       <div className="quote-box">
-        <p className="quote-text">
-          {quoteData.text}
-        </p>
+        {isQuoteLoading ? (
+          <div className="loading">Chargement de la citation...</div>
+        ) : (
+          <p className="quote-text">
+            {quoteData.text}
+          </p>
+        )}
         {showResult && (
           <div className={`result-message ${isCorrect ? 'correct' : 'incorrect'}`}>
             {isCorrect ? (
