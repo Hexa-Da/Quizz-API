@@ -92,7 +92,7 @@ app.get('/auth/google/callback',
     const user = req.user;
 
     const userPayload = {
-      id: user.id,
+      id: String(user.id), 
       email: user.email
     };
 

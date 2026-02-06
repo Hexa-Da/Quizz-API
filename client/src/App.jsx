@@ -27,33 +27,50 @@ function App() {
     return saved ? parseInt(saved, 10) : 0
   })
 
-  // Récupérer le token après redirect Google (ex: /?token=xxx)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    if (token) {
-      localStorage.setItem('authToken', token);
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
-
-  // Vérifier l'authentification au chargement
-  useEffect(() => {
-    fetch(`${API_URL}/api/user`, {
-      headers: authHeaders()
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.id) {
-          setUser(data)
-          setBestScore(data.bestScore || 0)
+    const initAuth = async () => {
+      // 1. On regarde d'abord si un token vient d'arriver dans l'URL
+      const params = new URLSearchParams(window.location.search);
+      const tokenFromUrl = params.get('token');
+      
+      if (tokenFromUrl) {
+        localStorage.setItem('authToken', tokenFromUrl);
+        // On nettoie l'URL immédiatement
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+  
+      // 2. Maintenant on récupère le token (soit l'ancien, soit le nouveau de l'URL)
+      const token = localStorage.getItem('authToken');
+  
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+  
+      // 3. On vérifie l'utilisateur
+      try {
+        const res = await fetch(`${API_URL}/api/user`, {
+          headers: authHeaders()
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok && data.id) {
+          setUser(data);
+          setBestScore(data.bestScore || 0);
+        } else {
+          // Si le token est invalide (ex: expiré), on nettoie
+          localStorage.removeItem('authToken');
         }
-        setIsLoading(false)
-      })
-      .catch(() => {
-        setIsLoading(false)
-      })
-  }, [])
+      } catch (error) {
+        console.error("Erreur auth:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+  
+    initAuth();
+  }, []);
 
   function handleLogin() {
     window.location.href = `${API_URL}/auth/google`
@@ -146,7 +163,6 @@ function App() {
           fetch(`${API_URL}/api/score`, {
             method: 'POST',
             headers: authHeaders(),
-            credentials: 'include',
             body: JSON.stringify({ score: newScore })
           })
             .then(res => res.json())
