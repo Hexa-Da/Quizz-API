@@ -22,6 +22,7 @@ function App() {
   const [correctAnswers, setCorrectAnswers] = useState(0)
   const [wrongAnswers, setWrongAnswers] = useState(0)
   const [streak, setStreak] = useState(0)
+  const [animateStreak, setAnimateStreak] = useState(false);
   const [isQuoteLoading, setIsQuoteLoading] = useState(false);
   const [bestScore, setBestScore] = useState(() => {
     // Charger le meilleur score depuis localStorage au démarrage
@@ -182,9 +183,16 @@ function App() {
         .then(res => res.json())
         .then(data => {
           if (data.streak !== undefined) {
-            setStreak(data.streak)
-        }
-      })
+            setStreak(prev => {
+              if (data.streak > prev) {
+                setAnimateStreak(true);
+                setTimeout(() => setAnimateStreak(false), 600);
+              }
+              return data.streak;
+            });
+          }
+        })
+
       .catch(err => console.error("Erreur streak:", err))
 
     } else {
@@ -247,6 +255,14 @@ function App() {
         <div className="user-info">
           <img src={user.photo} alt={user.name} className="user-avatar" />
           <span>{user.name}</span>
+          <div className="user-streak-container">
+          <span className="user-streak tooltip-target">🔥{streak}</span>
+          
+            <div className="tooltip">
+              Tu as une série de {streak} jours !
+            </div>
+        </div>
+
         </div>
         <button onClick={handleLogout} className="logout-button">
           Déconnexion
@@ -262,10 +278,7 @@ function App() {
             <span>📊 Taux de réussite: {accuracyPercentage()}%</span>
             <span>🏆 Meilleur score: {bestScore}</span>
         </div>
-        <div className="score-item">
-          <span>🔥 Streak : {streak} jours</span>
-        </div>
-
+     
       </div>
 
       <div className="quote-box">

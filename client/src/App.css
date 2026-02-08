@@ -1,7 +1,7 @@
 #root {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem;
   text-align: center;
 }
 
@@ -12,7 +12,7 @@
   align-items: center;
   justify-content: center;
   min-height: 80vh;
-  gap: 3rem;
+  gap: 1rem;
 }
 
 .user-header {
@@ -39,7 +39,7 @@
 }
 
 .logout-button {
-  background-color: red;
+  background-color: darkred;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -48,7 +48,7 @@
 }
 
 logout-button:hover {
-  background-color: darkred;
+  background-color: rgb(197, 0, 0);
 }
 
 .score-container {
@@ -66,38 +66,38 @@ logout-button:hover {
 .quote-box {
   background-color: black;
   border-radius: 12px;
-  padding: 2rem;
+  padding: 1rem;
   max-width: 600px;
   width: 100%;
-  min-height: 150px;
+  min-height: 120px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .quote-text {
-  font-size: 1.5rem;
+  font-size: 1rem;
   line-height: 1.6;
   color: white;
   margin: 0;
 }
 
 .result-message {
-  padding: 1rem;
+  padding: 0.5rem;
   border-radius: 8px;
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .result-message.correct {
-  background-color: green;
+  background-color: rgb(110, 176, 110);
   color: white;
 }
 
 .result-message.incorrect {
-  background-color: red;
+  background-color: rgb(255, 117, 117);
   color: white;
 }
 
@@ -112,13 +112,13 @@ logout-button:hover {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
   width: 100%;
 }
 
 .celebrity-image {
-  width: 150px;
-  height: 150px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   object-fit: cover;
   border: 3px solid white;
@@ -126,7 +126,7 @@ logout-button:hover {
 }
 
 .image-loading {
-  font-size: 0.9rem;
+  font-size: 0.5rem;
   color: grey;
   font-style: italic;
 }
@@ -155,12 +155,12 @@ logout-button:hover {
 }
 
 .quote-button.correct-answer {
-  background-color: green;
+  background-color: rgb(110, 176, 110);
   color: white;
 }
 
 .quote-button.wrong-answer {
-  background-color: red;
+  background-color: rgb(255, 117, 117);
   color: white;
 }
 
@@ -169,7 +169,7 @@ logout-button:hover {
   padding: 1rem;
   font-size: 1.1rem;
   font-weight: 600;
-  background-color: blue;
+  background-color: rgb(141, 118, 34);
   color: white;
   margin-top: 1rem;
 }
@@ -187,6 +187,36 @@ logout-button:hover {
 }
 
 .error {
-  color: red;
+  color: rgb(255, 117, 117);
 }
 
+/* Conteneur de la flamme */
+.user-streak-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Tooltip (invisible par défaut) */
+.tooltip {
+  position: absolute;
+  bottom: -35px;
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  background: #333;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
+  z-index: 9999;
+}
+
+/* Affichage du tooltip au survol */
+.tooltip-target:hover + .tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
