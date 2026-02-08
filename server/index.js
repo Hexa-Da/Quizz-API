@@ -137,6 +137,40 @@ app.post('/api/score', verifyToken, async (req, res) => {
   }
 });
 
+// Route pour mettre à jour la streak de l'utilisateur
+app.post('/api/streak', verifyToken, async (req, res) => {
+  try {
+    const user = req.user;
+    const today = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+    
+    if (user.lastPlayedDate === null) {
+      // L'utilisateur n'a jamais joué auparavant -> streak = 1
+      user.streak = 1;
+      user.lastPlayedDate = today;
+      await user.save();
+      return res.json({ streak: user.streak, message: 'Streak initialisée à 1' });
+    }
+    if (user.lastPlayedDate === today) {
+      // L'utilisateur a déjà joué aujourd'hui
+      return res.json({ streak: user.streak, message: "Déjà joué aujourd'hui" })
+    }
+    if (user.lastPlayedDate === new Date(Date.now() - 86400000).toISOString().split('T')[0]) {
+      // L'utilisateur a joué hier -> streak += 1
+      user.streak += 1;
+    } else {
+      // L'utilisateur n'a pas joué hier -> streak = 1
+      user.streak = 1;
+    }
+    user.lastPlayedDate = today;
+    await user.save();
+    res.json({ streak: user.streak, message: 'Streak mise à jour avec succès' });
+
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de la streak:', error.message);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour de la streak' });
+  }
+});
+
 // Fonction pour mélanger un tableau
 function shuffleArray(array) {
     const shuffled = [...array];

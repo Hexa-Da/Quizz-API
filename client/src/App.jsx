@@ -21,6 +21,7 @@ function App() {
   const [imageLoading, setImageLoading] = useState(false)
   const [correctAnswers, setCorrectAnswers] = useState(0)
   const [wrongAnswers, setWrongAnswers] = useState(0)
+  const [streak, setStreak] = useState(0)
   const [isQuoteLoading, setIsQuoteLoading] = useState(false);
   const [bestScore, setBestScore] = useState(() => {
     // Charger le meilleur score depuis localStorage au démarrage
@@ -59,6 +60,7 @@ function App() {
         if (res.ok && data.id) {
           setUser(data);
           setBestScore(data.bestScore || 0);
+          setStreak(data.streak || 0);
         } else {
           // Si le token est invalide (ex: expiré), on nettoie
           localStorage.removeItem('authToken');
@@ -171,6 +173,20 @@ function App() {
         }
         return newScore
       })
+      
+      // Mettre à jour le streak si bonne réponse dans la journée
+      fetch(`${API_URL}/api/streak`, {
+        method: 'POST',
+        headers: authHeaders()
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.streak !== undefined) {
+            setStreak(data.streak)
+        }
+      })
+      .catch(err => console.error("Erreur streak:", err))
+
     } else {
       setWrongAnswers(prev => prev + 1)
     }
@@ -246,6 +262,10 @@ function App() {
             <span>📊 Taux de réussite: {accuracyPercentage()}%</span>
             <span>🏆 Meilleur score: {bestScore}</span>
         </div>
+        <div className="score-item">
+          <span>🔥 Streak : {streak} jours</span>
+        </div>
+
       </div>
 
       <div className="quote-box">
