@@ -56,6 +56,7 @@ Jeu interactif où vous devez compléter des citations en choisissant le mot man
 | GET | `/api/user` | JWT | Retourne l’utilisateur connecté. |
 | POST | `/api/score` | JWT | Met à jour le meilleur score. |
 | GET | `/api/quote` | Non | Retourne une citation aléatoire avec options. |
+| GET | `/api/celebrity-image` | Non | Retourne l’image d’une célébrité (Wikipedia). |
 
 ---
 
@@ -76,7 +77,10 @@ Quizz-API/
 │   ├── config/
 │   │   └── database.js     # Connexion MongoDB
 │   ├── models/
-│   │   └── User.js
+│   │   ├── User.js
+│   │   └── Quote.js
+│   ├── scripts/
+│   │   └── seed-quotes.js  # Peupler la base de citations
 │   ├── .env.example
 │   ├── index.js            # Routes + logique
 │   └── package.json

@@ -19,10 +19,7 @@ Avant de commencer, assurez-vous d’avoir :
 
 ## 1. MongoDB
 
-L’application utilise MongoDB Atlas pour stocker les utilisateurs (Google OAuth) et leurs meilleurs scores.
-
-**Pourquoi Atlas ?**  
-Atlas est gratuit, rapide à configurer, accessible partout et ne nécessite aucune installation locale.
+L’application utilise MongoDB pour stocker les **utilisateurs** (Google OAuth), leurs **meilleurs scores** et les **citations** du jeu. En production.
 
 - Créez un cluster gratuit sur [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
 - Récupérez l’URI de connexion (ex. `mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/quizz-api?retryWrites=true&w=majority`).
@@ -103,7 +100,20 @@ npm install
 
 ---
 
-## 5. Lancer le projet
+## 5. Peupler la base de citations
+
+Le jeu a besoin de citations en base. Depuis le dossier `server/`, exécutez une fois le script de seed :
+
+```bash
+cd server
+node scripts/seed-quotes.js
+```
+
+Cela insère les citations (source Ouest-France) dans la collection MongoDB. Sans cette étape, le jeu n’affichera aucune question.
+
+---
+
+## 6. Lancer le projet
 
 Vous devez lancer **deux processus** : le serveur API puis le frontend.
 
