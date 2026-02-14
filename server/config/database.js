@@ -1,12 +1,15 @@
 const mongoose = require('mongoose');
+const logger = require('./logger');
 require('dotenv').config();
+
+const DEFAULT_DB_URI = 'mongodb://localhost:27017/quizz-api';
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/quizz-api');
-    console.log('✅ MongoDB connecté avec succès');
+    await mongoose.connect(process.env.MONGODB_URI || DEFAULT_DB_URI);
+    logger.info('MongoDB connecté avec succès');
   } catch (error) {
-    console.error('❌ Erreur de connexion MongoDB:', error.message);
+    logger.error('Erreur de connexion MongoDB: %s', error.message);
     process.exit(1);
   }
 };

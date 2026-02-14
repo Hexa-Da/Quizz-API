@@ -18,10 +18,10 @@ Jeu interactif où vous devez compléter des citations en choisissant le mot man
 
 ## Fonctionnement
 
-1. L’utilisateur se connecte avec **Google OAuth** 
+1. L'utilisateur se connecte avec **Google OAuth**
 2. Le backend sélectionne une **citation aléatoire** parmi une liste de citations drôles (source : Ouest-France).
 3. La citation est affichée avec `_____` à la place du mot manquant.
-4. L’utilisateur choisit parmi **4 options** ; le résultat et l’auteur sont affichés.
+4. L'utilisateur choisit parmi **4 options** ; le résultat et l'auteur sont affichés.
 5. Le **meilleur score** est sauvegardé en base et affiché.
 
 ---
@@ -33,7 +33,7 @@ Jeu interactif où vous devez compléter des citations en choisissant le mot man
 | Script | Commande | Description |
 |--------|----------|-------------|
 | `start` | `npm start` | Lance le serveur (`node index.js`). Utilisé en production (Render). |
-| `test` | `npm test` | Placeholder (aucun test pour l’instant). |
+| `test` | `npm test` | Lance les tests d'intégration (Jest + Supertest). |
 
 ### Frontend (`client/`)
 
@@ -41,6 +41,7 @@ Jeu interactif où vous devez compléter des citations en choisissant le mot man
 |--------|----------|-------------|
 | `dev` | `npm run dev` | Serveur de développement Vite (hot reload). |
 | `build` | `npm run build` | Build de production → dossier `dist/` (déployé sur Netlify). |
+| `lint` | `npm run lint` | Vérifie le code avec ESLint. |
 
 ---
 
@@ -53,10 +54,10 @@ Jeu interactif où vous devez compléter des citations en choisissant le mot man
 | GET | `/auth/google` | Non | Redirige vers la page de connexion Google. |
 | GET | `/auth/google/callback` | Non | Callback OAuth ; redirige vers le frontend avec un token JWT. |
 | GET | `/auth/logout` | Non | Réponse « Déconnexion réussie ». |
-| GET | `/api/user` | JWT | Retourne l’utilisateur connecté. |
+| GET | `/api/user` | JWT | Retourne l'utilisateur connecté. |
 | POST | `/api/score` | JWT | Met à jour le meilleur score. |
 | GET | `/api/quote` | Non | Retourne une citation aléatoire avec options. |
-| GET | `/api/celebrity-image` | Non | Retourne l’image d’une célébrité (Wikipedia). |
+| GET | `/api/celebrity-image` | Non | Retourne l'image d'une célébrité (Wikipedia). |
 
 ---
 
@@ -75,15 +76,21 @@ Quizz-API/
 │   └── package.json
 ├── server/                 # Backend Express
 │   ├── config/
-│   │   └── database.js     # Connexion MongoDB
+│   │   ├── database.js     # Connexion MongoDB
+│   │   └── logger.js       # Logger Winston
 │   ├── models/
 │   │   ├── User.js
 │   │   └── Quote.js
 │   ├── scripts/
 │   │   └── seed-quotes.js  # Peupler la base de citations
+│   ├── __tests__/
+│   │   └── api.test.js     # Tests d'intégration
 │   ├── .env.example
 │   ├── index.js            # Routes + logique
 │   └── package.json
+├── .github/
+│   └── workflows/
+│       └── ci.yml          # CI/CD GitHub Actions
 ├── DEMARRAGE.md            # Guide de démarrage détaillé
 └── README.md               # Ce fichier
 ```

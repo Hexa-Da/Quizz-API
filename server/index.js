@@ -4,16 +4,32 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const mongoose = require('mongoose');
 const connectDB = require('./config/database');
+const logger = require('./config/logger');
 const User = require('./models/User');
 const Quote = require('./models/Quote');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 require('dotenv').config();
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+// Constantes
+const DEFAULT_PORT = 3000;
+const HTTP_OK = 200;
+const HTTP_SERVICE_UNAVAILABLE = 503;
+const DB_CONNECTED_STATE = 1;
+const SAMPLE_SIZE = 1;
+const WIKI_THUMB_SIZE = 500;
+const WIKI_REDIRECT = 1;
+const TOKEN_EXPIRY = '24h';
+const CACHE_TTL_SECONDS = 3600; // 1h en secondes
+const MS_PER_SECOND = 1000;
+const WORD_PLACEHOLDER = '_____';
+const WIKI_API_URL = 'https://en.wikipedia.org/w/api.php';
+const WIKI_USER_AGENT = 'QuizzAPI/1.0 (https://github.com/Hexa-Da/Quizz-API)';
 
-// Indiquer que l’app est derrière un proxy (Render)
+const app = express();
+const PORT = process.env.PORT || DEFAULT_PORT;
+
+// Indiquer que l'app est derrière un proxy (Render)
 app.set('trust proxy', 1);
 
 // Middleware
@@ -21,64 +37,66 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 
 app.use(cors({
-    origin: FRONTEND_URL,
-    credentials: true
+  origin: FRONTEND_URL,
+  credentials: true
 }));
 app.use(express.json());
 app.use(passport.initialize());
 
 // Configuration Passport Google OAuth
 passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: `${BACKEND_URL}/auth/google/callback`
-  },
-  async (accessToken, refreshToken, profile, done) => {
-    try {
-        let user = await User.findOne({ id: profile.id });
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: `${BACKEND_URL}/auth/google/callback`
+},
+async (accessToken, refreshToken, profile, done) => {
+  try {
+    let user = await User.findOne({ id: profile.id });
 
-        if (user) {
-            // Utilisateur existe déjà, mettre à jour les infos si nécessaire
-            user.email = profile.emails[0].value;
-            user.name = profile.displayName;
-            user.photo = profile.photos[0].value;
-            await user.save();
-        } else {
-            // Créer un nouvel utilisateur
-            user = await User.create({
-              id: profile.id,
-              email: profile.emails[0].value,
-              name: profile.displayName,
-              photo: profile.photos[0].value,
-              bestScore: 0
-            });
-        }
-
-        return done(null, user);
-    } catch (error) {
-      return done(error, null);
+    if (user) {
+      user.email = profile.emails[0].value;
+      user.name = profile.displayName;
+      user.photo = profile.photos[0].value;
+      await user.save();
+    } else {
+      user = await User.create({
+        id: profile.id,
+        email: profile.emails[0].value,
+        name: profile.displayName,
+        photo: profile.photos[0].value,
+        bestScore: 0
+      });
     }
+
+    return done(null, user);
+  } catch (error) {
+    return done(error, null);
   }
+}
 ));
 
-// Middleware pour vérifier le token JWT
-const verifyToken = (req, res, next) => {
+// Middleware pour vérifier le token JWT (async/await)
+const verifyToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Accès refusé' });
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-    if (err) return res.status(403).json({ error: 'Token invalide' });
-    User.findOne({ id: String(decoded.id) })
-      .then(user => {
-        if (!user) return res.status(403).json({ error: 'Utilisateur introuvable' });
-        req.user = user;
-        next();
-      })
-      .catch(() => {
-        return res.status(500).json({ error: 'Erreur serveur' });
-      })
-  });
+  if (!token) {
+    return res.status(401).json({ error: 'Accès refusé' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findOne({ id: String(decoded.id) });
+
+    if (!user) {
+      return res.status(403).json({ error: 'Utilisateur introuvable' });
+    }
+
+    req.user = user;
+    return next();
+  } catch {
+    return res.status(403).json({ error: 'Token invalide' });
+  }
 };
 
 // Routes d'authentification
@@ -92,23 +110,23 @@ app.get('/auth/google/callback',
     const user = req.user;
 
     const userPayload = {
-      id: String(user.id), 
+      id: String(user.id),
       email: user.email
     };
 
-    const token = jwt.sign(userPayload, process.env.JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign(userPayload, process.env.JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 
-    res.redirect(`${FRONTEND_URL}/?token=${encodeURIComponent(token)}`);
+    return res.redirect(`${FRONTEND_URL}/?token=${encodeURIComponent(token)}`);
   }
 );
 
 app.get('/auth/logout', (req, res) => {
-  res.json({ message: 'Déconnexion réussie' });
+  return res.json({ message: 'Déconnexion réussie' });
 });
 
 // Route pour obtenir l'utilisateur actuel
 app.get('/api/user', verifyToken, (req, res) => {
-  res.json(req.user);
+  return res.json(req.user);
 });
 
 // Route pour mettre à jour le meilleur score
@@ -116,11 +134,13 @@ app.post('/api/score', verifyToken, async (req, res) => {
   try {
     const { score } = req.body;
     const num = Number(score);
+
     if (typeof score === 'undefined' || Number.isNaN(num) || num < 0 || !Number.isInteger(num)) {
       return res.status(400).json({ error: 'Score invalide (entier >= 0 attendu)' });
     }
 
     const user = await User.findOne({ id: req.user.id });
+
     if (!user) {
       return res.status(404).json({ error: 'Utilisateur non trouvé' });
     }
@@ -132,25 +152,25 @@ app.post('/api/score', verifyToken, async (req, res) => {
 
     return res.json({ bestScore: user.bestScore });
   } catch (error) {
-    console.error('Erreur lors de la mise à jour du score:', error.message);
+    logger.error('Erreur lors de la mise à jour du score: %s', error.message);
     return res.status(500).json({ error: 'Erreur lors de la mise à jour du score' });
   }
 });
 
-// Fonction pour mélanger un tableau
+// Fonction pour mélanger un tableau (Fisher-Yates)
 function shuffleArray(array) {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }
 
 // Route pour obtenir une citation drôle
 app.get('/api/quote', async (req, res) => {
   try {
-    const results = await Quote.aggregate([{ $sample: { size: 1 } }]);
+    const results = await Quote.aggregate([{ $sample: { size: SAMPLE_SIZE } }]);
     const selectedQuote = results[0];
 
     if (!selectedQuote) {
@@ -158,10 +178,10 @@ app.get('/api/quote', async (req, res) => {
     }
 
     const regex = new RegExp(`\\b${selectedQuote.missingWord}\\b`, 'gi');
-    const textWithPlaceholder = selectedQuote.text.replace(regex, '_____');
+    const textWithPlaceholder = selectedQuote.text.replace(regex, WORD_PLACEHOLDER);
     const shuffledOptions = shuffleArray(selectedQuote.options);
 
-    res.json({
+    return res.json({
       id: selectedQuote._id.toString(),
       text: textWithPlaceholder,
       fullText: selectedQuote.text,
@@ -170,7 +190,7 @@ app.get('/api/quote', async (req, res) => {
       options: shuffledOptions
     });
   } catch (error) {
-    console.error('Erreur:', error.message);
+    logger.error('Erreur lors de la récupération de citation: %s', error.message);
     return res.status(500).json({
       error: 'Impossible de récupérer une citation',
       details: error.message
@@ -180,8 +200,10 @@ app.get('/api/quote', async (req, res) => {
 
 // Health check pour Render (DB + app)
 app.get('/health', (req, res) => {
-  const dbOk = mongoose.connection.readyState === 1;
-  res.status(dbOk ? 200 : 503).json({
+  const dbOk = mongoose.connection.readyState === DB_CONNECTED_STATE;
+  const statusCode = dbOk ? HTTP_OK : HTTP_SERVICE_UNAVAILABLE;
+
+  return res.status(statusCode).json({
     status: dbOk ? 'ok' : 'degraded',
     db: dbOk ? 'connected' : 'disconnected'
   });
@@ -189,11 +211,12 @@ app.get('/health', (req, res) => {
 
 // Cache pour les images de célébrités
 const celebrityImageCache = new Map();
-const CACHE_TTL = 60 * 60; // 1h en secondes
 
 function getFromCache(key) {
   const entry = celebrityImageCache.get(key);
-  if (!entry) return null;
+  if (!entry) {
+    return null;
+  }
   if (Date.now() > entry.expiresAt) {
     celebrityImageCache.delete(key);
     return null;
@@ -201,40 +224,42 @@ function getFromCache(key) {
   return entry.data;
 }
 
-function setCache(key, data, ttlSeconds = CACHE_TTL) {
-  celebrityImageCache.set(key, { data, expiresAt: Date.now() + ttlSeconds * 1000 });
+function setCache(key, data, ttlSeconds = CACHE_TTL_SECONDS) {
+  celebrityImageCache.set(key, {
+    data,
+    expiresAt: Date.now() + ttlSeconds * MS_PER_SECOND
+  });
 }
 
 // Route pour obtenir l'image d'une célébrité depuis Wikipedia
 app.get('/api/celebrity-image', async (req, res) => {
   const name = (req.query.name || '').trim();
+
   if (!name) {
     return res.status(400).json({ error: 'Paramètre "name" requis' });
   }
 
   const cacheKey = `celebrity:${name.toLowerCase()}`;
   const cached = getFromCache(cacheKey);
+
   if (cached) {
-    console.log(`📸 Image de ${name} récupérée du cache`);
+    logger.info('Image de %s récupérée du cache', name);
     return res.json(cached);
   }
 
   try {
-    const wikiUrl = 'https://en.wikipedia.org/w/api.php';
     const params = {
       action: 'query',
       titles: name,
       prop: 'pageimages',
       format: 'json',
-      pithumbsize: 500,
-      redirects: 1
+      pithumbsize: WIKI_THUMB_SIZE,
+      redirects: WIKI_REDIRECT
     };
 
-    const { data } = await axios.get(wikiUrl, {
+    const { data } = await axios.get(WIKI_API_URL, {
       params,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
+      headers: { 'User-Agent': WIKI_USER_AGENT }
     });
     const pages = data.query && data.query.pages;
 
@@ -243,6 +268,7 @@ app.get('/api/celebrity-image', async (req, res) => {
     }
 
     const page = Object.values(pages)[0];
+
     if (page && page.thumbnail && page.thumbnail.source) {
       const result = {
         image: page.thumbnail.source,
@@ -250,13 +276,13 @@ app.get('/api/celebrity-image', async (req, res) => {
         source: 'Wikipedia'
       };
       setCache(cacheKey, result);
-      console.log(`Image de ${page.title} récupérée depuis Wikipedia`);
+      logger.info('Image de %s récupérée depuis Wikipedia', page.title);
       return res.json(result);
-    } else {
-      return res.status(404).json({ error: 'Aucune image trouvée pour cette célébrité' });
     }
+
+    return res.status(404).json({ error: 'Aucune image trouvée pour cette célébrité' });
   } catch (err) {
-    console.error('Erreur lors de la récupération de l\'image:', err.message);
+    logger.error('Erreur lors de la récupération de l\'image: %s', err.message);
     return res.status(500).json({ error: 'Erreur serveur lors de la récupération de l\'image' });
   }
 });
@@ -266,25 +292,30 @@ app.get('/', async (req, res) => {
   try {
     const totalQuotes = await Quote.countDocuments();
     const authors = await Quote.distinct('author');
-    res.json({
+
+    return res.json({
       message: 'API Quizz est en ligne !',
       source: 'Citations drôles - Ouest-France',
       totalQuotes,
       authors,
       endpoints: ['/api/quote', '/api/celebrity-image?name=NomCelebrite']
     });
-  } catch (e) {
+  } catch {
     return res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
-
-// Démarrer le serveur tout de suite (évite le timeout du health check Render),
-// puis connecter la DB en arrière-plan. /health renverra 503 jusqu'à connexion DB.
-app.listen(PORT, async () => {
-  console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-  await connectDB().catch((err) => {
-    console.error('Connexion MongoDB échouée:', err.message);
-    process.exit(1);
+// Démarrer le serveur uniquement si exécuté directement (pas en test)
+if (require.main === module) {
+  app.listen(PORT, async () => {
+    logger.info('Serveur démarré sur le port %d', PORT);
+    try {
+      await connectDB();
+    } catch (err) {
+      logger.error('Connexion MongoDB échouée: %s', err.message);
+      process.exit(1);
+    }
   });
-});
+}
+
+module.exports = app;

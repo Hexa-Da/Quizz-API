@@ -1,86 +1,300 @@
-import { useState, useEffect, useRef } from 'react'
-import './App.css'
+import { useState, useEffect, useRef, useCallback } from 'react';
+import './App.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const DEFAULT_SCORE = 0;
+const PERCENTAGE_MULTIPLIER = 100;
+const PARSE_RADIX = 10;
 
 function authHeaders() {
   const token = localStorage.getItem('authToken');
   const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
   return headers;
 }
 
+// --- Sous-composants ---
+
+function LoadingScreen() {
+  return (
+    <div className="app">
+      <div className="loading">Chargement...</div>
+    </div>
+  );
+}
+
+function LoginScreen({ onLogin }) {
+  return (
+    <div className="app">
+      <div className="login-container">
+        <h1>Quizz API</h1>
+        <p>Connectez-vous pour sauvegarder vos scores</p>
+        <button onClick={onLogin} className="login-button">
+          Se connecter avec Google
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ErrorScreen() {
+  return (
+    <div className="app">
+      <div className="error">Erreur lors du chargement</div>
+    </div>
+  );
+}
+
+function UserHeader({ user, onLogout }) {
+  return (
+    <div className="user-header">
+      <div className="user-info">
+        <img src={user.photo} alt={user.name} className="user-avatar" />
+        <span>{user.name}</span>
+      </div>
+      <button onClick={onLogout} className="logout-button">
+        Déconnexion
+      </button>
+    </div>
+  );
+}
+
+function ScoreBoard({ correctAnswers, wrongAnswers, bestScore }) {
+  const totalAnswers = correctAnswers + wrongAnswers;
+  const successRate = totalAnswers > 0
+    ? Math.round((correctAnswers / totalAnswers) * PERCENTAGE_MULTIPLIER)
+    : 0;
+
+  return (
+    <div className="score-container">
+      <div className="score-item">
+        <span>Correctes: {correctAnswers}</span>
+        <span>Incorrectes: {wrongAnswers}</span>
+      </div>
+      <div className="score-item">
+        <span>Taux de réussite: {successRate}%</span>
+        <span>Meilleur score: {bestScore}</span>
+      </div>
+    </div>
+  );
+}
+
+function ResultMessage({ isCorrect, correctAnswer }) {
+  const className = `result-message ${isCorrect ? 'correct' : 'incorrect'}`;
+
+  if (isCorrect) {
+    return (
+      <div className={className}>
+        <span>Correct ! La réponse était : &quot;{correctAnswer}&quot;</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={className}>
+      <span>Incorrect. La bonne réponse était : &quot;{correctAnswer}&quot;</span>
+    </div>
+  );
+}
+
+function AuthorSection({ author, celebrityImage, imageLoading }) {
+  return (
+    <div className="author-section">
+      {imageLoading && <div className="image-loading">Chargement de l&apos;image...</div>}
+      {celebrityImage && (
+        <img src={celebrityImage} alt={author} className="celebrity-image" />
+      )}
+      <div className="author-text">
+        <p>{author}</p>
+      </div>
+    </div>
+  );
+}
+
+function QuoteDisplay({ quoteData, isQuoteLoading, showResult, isCorrect, celebrityImage, imageLoading }) {
+  if (isQuoteLoading) {
+    return (
+      <div className="quote-box">
+        <div className="loading">Chargement de la citation...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="quote-box">
+      <p className="quote-text">{quoteData.text}</p>
+      {showResult && (
+        <ResultMessage isCorrect={isCorrect} correctAnswer={quoteData.correctAnswer} />
+      )}
+      {quoteData.author && (
+        <AuthorSection
+          author={quoteData.author}
+          celebrityImage={celebrityImage}
+          imageLoading={imageLoading}
+        />
+      )}
+    </div>
+  );
+}
+
+function AnswerButtons({ options, showResult, correctAnswer, selectedAnswer, onChoice }) {
+  function getButtonClass(option) {
+    if (!showResult) return '';
+    if (option === correctAnswer) return 'correct-answer';
+    if (option === selectedAnswer) return 'wrong-answer';
+    return '';
+  }
+
+  return (
+    <div className="buttons-container">
+      {options.map((option, index) => (
+        <button
+          key={`option-${index}-${option}`}
+          className={`quote-button ${getButtonClass(option)}`}
+          onClick={() => onChoice(option)}
+          disabled={showResult}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// --- Composant principal ---
+
 function App() {
-  const [user, setUser] = useState(null)
-  const [quoteData, setQuoteData] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [selectedAnswer, setSelectedAnswer] = useState(null)
-  const [showResult, setShowResult] = useState(false)
-  const hasFetchedRef = useRef(false)
-  const [celebrityImage, setCelebrityImage] = useState(null)
-  const [imageLoading, setImageLoading] = useState(false)
-  const [correctAnswers, setCorrectAnswers] = useState(0)
-  const [wrongAnswers, setWrongAnswers] = useState(0)
+  const [user, setUser] = useState(null);
+  const [quoteData, setQuoteData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [showResult, setShowResult] = useState(false);
+  const hasFetchedRef = useRef(false);
+  const [celebrityImage, setCelebrityImage] = useState(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [correctAnswers, setCorrectAnswers] = useState(DEFAULT_SCORE);
+  const [wrongAnswers, setWrongAnswers] = useState(DEFAULT_SCORE);
   const [isQuoteLoading, setIsQuoteLoading] = useState(false);
   const [bestScore, setBestScore] = useState(() => {
-    // Charger le meilleur score depuis localStorage au démarrage
-    const saved = localStorage.getItem('bestScore')
-    return saved ? parseInt(saved, 10) : 0
-  })
+    const saved = localStorage.getItem('bestScore');
+    return saved ? parseInt(saved, PARSE_RADIX) : DEFAULT_SCORE;
+  });
+
+  const fetchQuote = useCallback(() => {
+    setIsQuoteLoading(true);
+    setSelectedAnswer(null);
+    setShowResult(false);
+
+    fetch(`${API_URL}/api/quote`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data && data.options && Array.isArray(data.options)) {
+          setQuoteData(data);
+        } else {
+          setQuoteData(null);
+        }
+        setIsQuoteLoading(false);
+      })
+      .catch(() => {
+        setQuoteData(null);
+        setIsQuoteLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
     const initAuth = async () => {
-      // 1. On regarde d'abord si un token vient d'arriver dans l'URL
       const params = new URLSearchParams(window.location.search);
       const tokenFromUrl = params.get('token');
-      
+
       if (tokenFromUrl) {
         localStorage.setItem('authToken', tokenFromUrl);
-        // On nettoie l'URL immédiatement
         window.history.replaceState({}, document.title, window.location.pathname);
       }
-  
-      // 2. Maintenant on récupère le token (soit l'ancien, soit le nouveau de l'URL)
+
       const token = localStorage.getItem('authToken');
-  
+
       if (!token) {
         setIsLoading(false);
         return;
       }
-  
-      // 3. On vérifie l'utilisateur
+
       try {
         const res = await fetch(`${API_URL}/api/user`, {
           headers: authHeaders()
         });
         const contentType = res.headers.get('content-type');
-        let data;
-        try {
-          data = contentType?.includes('application/json') 
-            ? await res.json() 
-            : null;
-        } catch {
-          data = null;
+        let data = null;
+
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            data = await res.json();
+          } catch {
+            data = null;
+          }
         }
-        if (res.ok && data.id) {
+
+        if (res.ok && data && data.id) {
           setUser(data);
-          setBestScore(data.bestScore || 0);
+          setBestScore(data.bestScore || DEFAULT_SCORE);
         } else {
-          // Si le token est invalide (ex: expiré), on nettoie
           localStorage.removeItem('authToken');
         }
-      } catch (error) {
-        console.error("Erreur auth:", error);
+      } catch {
+        // Token invalide ou erreur réseau
       } finally {
         setIsLoading(false);
       }
     };
-  
+
     initAuth();
   }, []);
 
+  useEffect(() => {
+    if (!hasFetchedRef.current && user) {
+      hasFetchedRef.current = true;
+      fetchQuote();
+    }
+  }, [user, fetchQuote]);
+
+  useEffect(() => {
+    if (quoteData && quoteData.author && user) {
+      setImageLoading(true);
+      setCelebrityImage(null);
+
+      fetch(`${API_URL}/api/celebrity-image?name=${encodeURIComponent(quoteData.author)}`)
+        .then(res => {
+          if (!res.ok) {
+            throw new Error('Image not found');
+          }
+          return res.json();
+        })
+        .then(data => {
+          setCelebrityImage(data.image);
+          setImageLoading(false);
+        })
+        .catch(() => {
+          setCelebrityImage(null);
+          setImageLoading(false);
+        });
+    }
+  }, [quoteData, user]);
+
+  useEffect(() => {
+    if (correctAnswers > bestScore) {
+      setBestScore(correctAnswers);
+      localStorage.setItem('bestScore', correctAnswers.toString());
+    }
+  }, [correctAnswers, bestScore]);
+
   function handleLogin() {
-    window.location.href = `${API_URL}/auth/google`
+    window.location.href = `${API_URL}/auth/google`;
   }
 
   function handleLogout() {
@@ -88,74 +302,27 @@ function App() {
       headers: authHeaders()
     })
       .then(() => {
-        localStorage.removeItem('authToken')
-        setUser(null)
-        setBestScore(0)
-        setCorrectAnswers(0)
-        setWrongAnswers(0)
+        localStorage.removeItem('authToken');
+        setUser(null);
+        setBestScore(DEFAULT_SCORE);
+        setCorrectAnswers(DEFAULT_SCORE);
+        setWrongAnswers(DEFAULT_SCORE);
       })
+      .catch(() => {
+        localStorage.removeItem('authToken');
+        setUser(null);
+      });
   }
-
-  function fetchQuote() {
-    setIsQuoteLoading(true)
-    setSelectedAnswer(null)
-    setShowResult(false)
-    
-    fetch(`${API_URL}/api/quote`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        return response.json()
-      })
-      .then(data => {
-        if (data && data.options && Array.isArray(data.options)) {
-          setQuoteData(data)
-        } else {
-          setQuoteData(null)
-        }
-        setIsQuoteLoading(false)
-      })
-  }
-
-  useEffect(() => {
-    // Éviter les appels multiples causés par StrictMode
-    if (!hasFetchedRef.current && user) {
-      hasFetchedRef.current = true
-      fetchQuote()
-    }
-  }, [user])
-
-
-  // Récupérer l'image de la célébrité quand la citation change
-  useEffect(() => {
-    if (quoteData && quoteData.author && user) {
-      setImageLoading(true)
-      setCelebrityImage(null)
-      
-      fetch(`${API_URL}/api/celebrity-image?name=${encodeURIComponent(quoteData.author)}`)
-        .then(res => {
-          if (!res.ok) throw new Error('Image not found')
-          return res.json()
-        })
-        .then(data => {
-          setCelebrityImage(data.image)
-          setImageLoading(false)
-        })
-    }
-  }, [quoteData, user])
 
   function handleChoice(choice) {
-    if (showResult) return // Empêcher de cliquer plusieurs fois
-    
-    setSelectedAnswer(choice)
-    setShowResult(true)
-  
-    // Mettre à jour le score
+    if (showResult) return;
+
+    setSelectedAnswer(choice);
+    setShowResult(true);
+
     if (choice === quoteData.correctAnswer) {
       setCorrectAnswers(prev => {
-        const newScore = prev + 1
-        // Sauvegarder le score si l'utilisateur est connecté
+        const newScore = prev + 1;
         if (user && newScore > bestScore) {
           fetch(`${API_URL}/api/score`, {
             method: 'POST',
@@ -164,149 +331,65 @@ function App() {
           })
             .then(res => res.json())
             .then(data => setBestScore(data.bestScore))
-            .catch(error => {
-              console.error('Erreur lors de la mise à jour du score:', error)
-            })
+            .catch(() => {
+              // Erreur réseau, le score local est déjà mis à jour
+            });
         }
-        return newScore
-      })
+        return newScore;
+      });
     } else {
-      setWrongAnswers(prev => prev + 1)
+      setWrongAnswers(prev => prev + 1);
     }
   }
-
-  function getButtonClass(option) {
-    if (!showResult) return '';
-    if (option === quoteData.correctAnswer) return 'correct-answer';
-    if (option === selectedAnswer) return 'wrong-answer';
-    return '';
-  }
-
-  function accuracyPercentage() {
-    const totalAnswers = correctAnswers + wrongAnswers;
-    const successRate = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
-    return successRate;
-  }
-
-  function handleNextQuote() {
-    fetchQuote()
-  }
-
-  useEffect(() => {
-    if (correctAnswers > bestScore) {
-      setBestScore(correctAnswers)
-      localStorage.setItem('bestScore', correctAnswers.toString())
-    }
-  }, [correctAnswers, bestScore])
 
   if (isLoading) {
-    return (
-      <div className="app">
-        <div className="loading">Chargement...</div>
-      </div>
-    )
+    return <LoadingScreen />;
   }
 
   if (!user) {
-    return (
-      <div className="app">
-        <div className="login-container">
-          <h1>Quizz API</h1>
-          <p>Connectez-vous pour sauvegarder vos scores</p>
-          <button onClick={handleLogin} className="login-button">
-            Se connecter avec Google
-          </button>
-        </div>
-      </div>
-    )
+    return <LoginScreen onLogin={handleLogin} />;
   }
 
   if (!quoteData || !quoteData.options) {
-    return (
-      <div className="app">
-        <div className="error">Erreur lors du chargement</div>
-      </div>
-    )
+    return <ErrorScreen />;
   }
 
-  const isCorrect = selectedAnswer === quoteData.correctAnswer
+  const isCorrect = selectedAnswer === quoteData.correctAnswer;
 
   return (
     <div className="app">
-      <div className="user-header">
-        <div className="user-info">
-          <img src={user.photo} alt={user.name} className="user-avatar" />
-          <span>{user.name}</span>
-        </div>
-        <button onClick={handleLogout} className="logout-button">
-          Déconnexion
-        </button>
-      </div>
+      <UserHeader user={user} onLogout={handleLogout} />
 
-      <div className="score-container">
-        <div className="score-item">
-            <span>✅ Correctes: {correctAnswers}</span>
-            <span>❌ Incorrectes: {wrongAnswers}</span>
-        </div>
-        <div className="score-item">
-            <span>📊 Taux de réussite: {accuracyPercentage()}%</span>
-            <span>🏆 Meilleur score: {bestScore}</span>
-        </div>
-      </div>
+      <ScoreBoard
+        correctAnswers={correctAnswers}
+        wrongAnswers={wrongAnswers}
+        bestScore={bestScore}
+      />
 
-      <div className="quote-box">
-        {isQuoteLoading ? (
-          <div className="loading">Chargement de la citation...</div>
-        ) : (
-          <>
-            <p className="quote-text">
-              {quoteData.text}
-            </p>
-          
-            {showResult && (
-              <div className={`result-message ${isCorrect ? 'correct' : 'incorrect'}`}>
-                {isCorrect ? (
-                  <span>✅ Correct ! La réponse était : "{quoteData.correctAnswer}"</span>
-                ) : (
-                  <span>❌ Incorrect. La bonne réponse était : "{quoteData.correctAnswer}"</span>
-                )}
-              </div>
-            )}
-            {quoteData.author && (
-                <div className="author-section">
-                  {imageLoading && <div className="image-loading">Chargement de l'image...</div>}
-                  {celebrityImage && (
-                    <img src={celebrityImage} alt={quoteData.author} className="celebrity-image" />
-                  )}
-                <div className="author-text">
-                  <p>{quoteData.author}</p>
-                </div>
-              </div>
-            )} 
-          </>
-        )}
-      </div>
-      
-      <div className="buttons-container">
-        {quoteData.options && quoteData.options.map((option) => (
-          <button
-            key={option}
-            className={`quote-button ${getButtonClass(option)}`}
-            onClick={() => handleChoice(option)}
-            disabled={showResult}
-          >
-            {option}
-          </button>
-        ))}
-      </div>
+      <QuoteDisplay
+        quoteData={quoteData}
+        isQuoteLoading={isQuoteLoading}
+        showResult={showResult}
+        isCorrect={isCorrect}
+        celebrityImage={celebrityImage}
+        imageLoading={imageLoading}
+      />
+
+      <AnswerButtons
+        options={quoteData.options}
+        showResult={showResult}
+        correctAnswer={quoteData.correctAnswer}
+        selectedAnswer={selectedAnswer}
+        onChoice={handleChoice}
+      />
 
       {showResult && (
-        <button className="next-button" onClick={handleNextQuote}>
+        <button className="next-button" onClick={fetchQuote}>
           Citation suivante
         </button>
       )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
