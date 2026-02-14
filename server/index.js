@@ -65,19 +65,19 @@ passport.use(new GoogleStrategy({
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-
   if (!token) return res.status(401).json({ error: 'Accès refusé' });
 
-  jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) return res.status(403).json({ error: 'Token invalide' });
-    try {
-      const user = await User.findOne({ id: String(decoded.id) });
-      if (!user) return res.status(403).json({ error: 'Utilisateur introuvable' });
-      req.user = user;
-      next();
-    } catch (e) {
-      return res.status(500).json({ error: 'Erreur serveur' });
-    }
+    User.findOne({ id: String(decoded.id) })
+      .then(user => {
+        if (!user) return res.status(403).json({ error: 'Utilisateur introuvable' });
+        req.user = user;
+        next();
+      })
+      .catch(() => {
+        return res.status(500).json({ error: 'Erreur serveur' });
+      })
   });
 };
 
@@ -133,7 +133,7 @@ app.post('/api/score', verifyToken, async (req, res) => {
     return res.json({ bestScore: user.bestScore });
   } catch (error) {
     console.error('Erreur lors de la mise à jour du score:', error.message);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour du score' });
+    return res.status(500).json({ error: 'Erreur lors de la mise à jour du score' });
   }
 });
 
@@ -170,8 +170,8 @@ app.get('/api/quote', async (req, res) => {
       options: shuffledOptions
     });
   } catch (error) {
-    console.error('❌ Erreur:', error.message);
-    res.status(500).json({
+    console.error('Erreur:', error.message);
+    return res.status(500).json({
       error: 'Impossible de récupérer une citation',
       details: error.message
     });
@@ -250,13 +250,13 @@ app.get('/api/celebrity-image', async (req, res) => {
         source: 'Wikipedia'
       };
       setCache(cacheKey, result);
-      console.log(`✅ Image de ${page.title} récupérée depuis Wikipedia`);
+      console.log(`Image de ${page.title} récupérée depuis Wikipedia`);
       return res.json(result);
     } else {
       return res.status(404).json({ error: 'Aucune image trouvée pour cette célébrité' });
     }
   } catch (err) {
-    console.error('❌ Erreur lors de la récupération de l\'image:', err.message);
+    console.error('Erreur lors de la récupération de l\'image:', err.message);
     return res.status(500).json({ error: 'Erreur serveur lors de la récupération de l\'image' });
   }
 });
@@ -274,17 +274,17 @@ app.get('/', async (req, res) => {
       endpoints: ['/api/quote', '/api/celebrity-image?name=NomCelebrite']
     });
   } catch (e) {
-    res.status(500).json({ message: 'Erreur serveur' });
+    return res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
 
 // Démarrer le serveur tout de suite (évite le timeout du health check Render),
 // puis connecter la DB en arrière-plan. /health renverra 503 jusqu'à connexion DB.
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-  connectDB().catch((err) => {
-    console.error('❌ Connexion MongoDB échouée:', err.message);
+  await connectDB().catch((err) => {
+    console.error('Connexion MongoDB échouée:', err.message);
     process.exit(1);
   });
 });

@@ -53,9 +53,15 @@ function App() {
         const res = await fetch(`${API_URL}/api/user`, {
           headers: authHeaders()
         });
-        
-        const data = await res.json();
-        
+        const contentType = res.headers.get('content-type');
+        let data;
+        try {
+          data = contentType?.includes('application/json') 
+            ? await res.json() 
+            : null;
+        } catch {
+          data = null;
+        }
         if (res.ok && data.id) {
           setUser(data);
           setBestScore(data.bestScore || 0);
@@ -106,15 +112,9 @@ function App() {
         if (data && data.options && Array.isArray(data.options)) {
           setQuoteData(data)
         } else {
-          console.error('Format de données invalide:', data)
           setQuoteData(null)
         }
         setIsQuoteLoading(false)
-      })
-      .catch(error => {
-        console.error('Erreur lors du fetch:', error)
-        setQuoteData(null)
-        setIsLoading(false)
       })
   }
 
@@ -142,10 +142,6 @@ function App() {
           setCelebrityImage(data.image)
           setImageLoading(false)
         })
-        .catch(error => {
-          console.warn(`Pas d'image trouvée pour ${quoteData.author}:`, error)
-          setImageLoading(false)
-        })
     }
   }, [quoteData, user])
 
@@ -168,12 +164,22 @@ function App() {
           })
             .then(res => res.json())
             .then(data => setBestScore(data.bestScore))
+            .catch(error => {
+              console.error('Erreur lors de la mise à jour du score:', error)
+            })
         }
         return newScore
       })
     } else {
       setWrongAnswers(prev => prev + 1)
     }
+  }
+
+  function getButtonClass(option) {
+    if (!showResult) return '';
+    if (option === quoteData.correctAnswer) return 'correct-answer';
+    if (option === selectedAnswer) return 'wrong-answer';
+    return '';
   }
 
   function accuracyPercentage() {
@@ -282,18 +288,10 @@ function App() {
       </div>
       
       <div className="buttons-container">
-        {quoteData.options && quoteData.options.map((option, index) => (
+        {quoteData.options && quoteData.options.map((option) => (
           <button
-            key={index}
-            className={`quote-button ${
-              showResult
-                ? option === quoteData.correctAnswer
-                  ? 'correct-answer'
-                  : option === selectedAnswer
-                  ? 'wrong-answer'
-                  : ''
-                : ''
-            }`}
+            key={option}
+            className={`quote-button ${getButtonClass(option)}`}
             onClick={() => handleChoice(option)}
             disabled={showResult}
           >
