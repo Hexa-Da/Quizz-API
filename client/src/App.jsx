@@ -203,7 +203,7 @@ function App() {
       .catch((error) => {
         setQuoteData(null);
         setIsQuoteLoading(false);
-        logger.error('Erreur : ' + error.message);
+        console.error('Erreur : ' + error.message);
       });
   }, []);
 
