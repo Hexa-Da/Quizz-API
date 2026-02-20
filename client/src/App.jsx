@@ -147,9 +147,9 @@ function AnswerButtons({ options, showResult, correctAnswer, selectedAnswer, onC
 
   return (
     <div className="buttons-container">
-      {options.map((option, index) => (
+      {options.map((option) => (
         <button
-          key={`option-${index}-${option}`}
+          key={option}
           className={`quote-button ${getButtonClass(option)}`}
           onClick={() => onChoice(option)}
           disabled={showResult}
@@ -245,8 +245,8 @@ function App() {
         } else {
           localStorage.removeItem('authToken');
         }
-      } catch {
-        // Token invalide ou erreur réseau
+      } catch (err) {
+        console.error('Erreur authentification:', err);
       } finally {
         setIsLoading(false);
       }
@@ -307,6 +307,10 @@ function App() {
         setCorrectAnswers(DEFAULT_SCORE);
         setWrongAnswers(DEFAULT_SCORE);
       })
+      .catch(() => {
+        localStorage.removeItem('authToken');
+        setUser(null);
+      });
   }
 
   function handleChoice(choice) {
@@ -326,6 +330,7 @@ function App() {
           })
             .then(res => res.json())
             .then(data => setBestScore(data.bestScore))
+            .catch(err => console.error('Erreur sauvegarde score:', err));
         }
         return newScore;
       });
