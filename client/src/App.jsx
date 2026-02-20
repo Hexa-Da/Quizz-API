@@ -3,8 +3,7 @@ import './App.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const DEFAULT_SCORE = 0;
-const PERCENTAGE_MULTIPLIER = 100;
-const PARSE_RADIX = 10;
+const PARSE_RADIX = 10; // pour convertir les nombres en base 10.
 
 function authHeaders() {
   const token = localStorage.getItem('authToken');
@@ -64,19 +63,44 @@ function UserHeader({ user, onLogout }) {
 function ScoreBoard({ correctAnswers, wrongAnswers, bestScore }) {
   const totalAnswers = correctAnswers + wrongAnswers;
   const successRate = totalAnswers > 0
-    ? Math.round((correctAnswers / totalAnswers) * PERCENTAGE_MULTIPLIER)
-    : 0;
+    ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
 
   return (
     <div className="score-container">
       <div className="score-item">
-        <span>Correctes: {correctAnswers}</span>
-        <span>Incorrectes: {wrongAnswers}</span>
+        <span>✅ Correctes: {correctAnswers}</span>
+        <span>❌ Incorrectes: {wrongAnswers}</span>
       </div>
       <div className="score-item">
-        <span>Taux de réussite: {successRate}%</span>
-        <span>Meilleur score: {bestScore}</span>
+        <span>🎯 Taux de réussite: {successRate}%</span>
+        <span>🏆 Meilleur score: {bestScore}</span>
       </div>
+    </div>
+  );
+}
+
+function QuoteDisplay({ quoteData, isQuoteLoading, showResult, isCorrect, celebrityImage, imageLoading }) {
+  if (isQuoteLoading) {
+    return (
+      <div className="quote-box">
+        <div className="loading">Chargement de la citation...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="quote-box">
+      <p className="quote-text">{quoteData.text}</p>
+      {showResult && (
+        <ResultMessage isCorrect={isCorrect} correctAnswer={quoteData.correctAnswer} />
+      )}
+      {quoteData.author && (
+        <AuthorSection
+          author={quoteData.author}
+          celebrityImage={celebrityImage}
+          imageLoading={imageLoading}
+        />
+      )}
     </div>
   );
 }
@@ -109,32 +133,6 @@ function AuthorSection({ author, celebrityImage, imageLoading }) {
       <div className="author-text">
         <p>{author}</p>
       </div>
-    </div>
-  );
-}
-
-function QuoteDisplay({ quoteData, isQuoteLoading, showResult, isCorrect, celebrityImage, imageLoading }) {
-  if (isQuoteLoading) {
-    return (
-      <div className="quote-box">
-        <div className="loading">Chargement de la citation...</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="quote-box">
-      <p className="quote-text">{quoteData.text}</p>
-      {showResult && (
-        <ResultMessage isCorrect={isCorrect} correctAnswer={quoteData.correctAnswer} />
-      )}
-      {quoteData.author && (
-        <AuthorSection
-          author={quoteData.author}
-          celebrityImage={celebrityImage}
-          imageLoading={imageLoading}
-        />
-      )}
     </div>
   );
 }
@@ -172,11 +170,11 @@ function App() {
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showResult, setShowResult] = useState(false);
   const hasFetchedRef = useRef(false);
-  const [celebrityImage, setCelebrityImage] = useState(null);
-  const [imageLoading, setImageLoading] = useState(false);
   const [correctAnswers, setCorrectAnswers] = useState(DEFAULT_SCORE);
   const [wrongAnswers, setWrongAnswers] = useState(DEFAULT_SCORE);
   const [isQuoteLoading, setIsQuoteLoading] = useState(false);
+  const [celebrityImage, setCelebrityImage] = useState(null);
+  const [imageLoading, setImageLoading] = useState(false);
   const [bestScore, setBestScore] = useState(() => {
     const saved = localStorage.getItem('bestScore');
     return saved ? parseInt(saved, PARSE_RADIX) : DEFAULT_SCORE;
@@ -202,9 +200,10 @@ function App() {
         }
         setIsQuoteLoading(false);
       })
-      .catch(() => {
+      .catch((error) => {
         setQuoteData(null);
         setIsQuoteLoading(false);
+        logger.error('Erreur : ' + error.message);
       });
   }, []);
 
@@ -258,8 +257,8 @@ function App() {
 
   useEffect(() => {
     if (!hasFetchedRef.current && user) {
-      hasFetchedRef.current = true;
       fetchQuote();
+      hasFetchedRef.current = true;
     }
   }, [user, fetchQuote]);
 
@@ -308,10 +307,6 @@ function App() {
         setCorrectAnswers(DEFAULT_SCORE);
         setWrongAnswers(DEFAULT_SCORE);
       })
-      .catch(() => {
-        localStorage.removeItem('authToken');
-        setUser(null);
-      });
   }
 
   function handleChoice(choice) {
@@ -331,9 +326,6 @@ function App() {
           })
             .then(res => res.json())
             .then(data => setBestScore(data.bestScore))
-            .catch(() => {
-              // Erreur réseau, le score local est déjà mis à jour
-            });
         }
         return newScore;
       });
@@ -351,7 +343,7 @@ function App() {
   }
 
   if (!quoteData || !quoteData.options) {
-    return <ErrorScreen />;
+    return isQuoteLoading ? <LoadingScreen /> : <ErrorScreen />;
   }
 
   const isCorrect = selectedAnswer === quoteData.correctAnswer;
